@@ -11,4 +11,6 @@ public interface UserService {
     ResponseEntity<?> login(LoginRequest request);
 
     Object getUser(String userId, int pageIdx, int pageSize);
+
+    ResponseEntity<?> uploadImg(String username, String url);
 }

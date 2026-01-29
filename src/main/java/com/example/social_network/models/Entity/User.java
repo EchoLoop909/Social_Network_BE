@@ -15,14 +15,17 @@ import java.util.*;
 
 @Entity
 @Table(name = "users")
-@Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Getter
+@Setter
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class User implements Serializable {
 
     @Id
     @Column(name = "id_user", length = 36, nullable = false, updatable = false)
+    @EqualsAndHashCode.Include
     private String id;
 
     @Column(name = "username", unique = true, nullable = false, length = 100)

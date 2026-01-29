@@ -28,6 +28,7 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
+import javax.transaction.Transactional;
 import java.time.LocalDateTime;
 import java.util.*;
 
@@ -55,8 +56,6 @@ public class UserServiceImpl implements UserService {
     String clientSecret;
 
     private final RestTemplate restTemplate = new RestTemplate();
-
-
     public String getAdminToken() {
         String url = serverUrl + "/realms/" + realm +"/protocol/openid-connect/token";
 
@@ -74,87 +73,36 @@ public class UserServiceImpl implements UserService {
 
         return response.getBody().get("access_token").toString();
     }
-
     @Override
     public ResponseEntity<?> createUser(CreateUserRequestDTO req, Jwt jwt) {
-        try{
-//            if (req.getStatus() == null) {
-//                return ResponseHelper.getResponseSearchMess(HttpStatus.BAD_REQUEST, new ResponseMess(0, "Status is required"));
-//            }
-//
-//            Statususer status = statusRepository.findById(req.getStatus())
-//                    .orElseThrow(() -> new RuntimeException("Status not found"));
-//
-//            HttpHeaders headers = new HttpHeaders();
-//            headers.setContentType(MediaType.APPLICATION_JSON);
-//            headers.setBearerAuth(getAdminToken());
-//            // 3. Body tạo user (đúng format Keycloak)
-//            Map<String, Object> body = new HashMap<>();
-//            body.put("username", req.getUsername());
-//            body.put("email", req.getEmail());
-//            body.put("enabled", true);
-//
-//            List<Map<String, Object>> credentials = new ArrayList<>();
-//            Map<String, Object> password = new HashMap<>();
-//            password.put("type", "password");
-//            password.put("value", req.getPassword());
-//            password.put("temporary", false);
-//            credentials.add(password);
-//
-//            body.put("credentials", credentials);
-//
-//            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
-//
-//            // 4. Call Keycloak Admin API
-//            String url = serverUrl + "/admin/realms/" + realm + "/users";
-//
-//            ResponseEntity<Void> response = restTemplate.postForEntity(url, entity, Void.class);
-//            if (response.getStatusCode() != HttpStatus.CREATED) {
-//                return ResponseEntity
-//                        .status(response.getStatusCode())
-//                        .body("Create user on Keycloak failed");
-//            }
-//
-//            User user = new User();
-//            user.setUsername(req.getUsername());
-//            user.setEmail(req.getEmail());
-//            user.setName(req.getName());
-//            user.setSurname(req.getSurname());
-//            user.setDescription(req.getDescription());
-//            user.setPhoto(req.getPhoto());
-//
-//            user.setStatus(status);
-//            user.setIsChecked(false);
-//            user.setCreationDate(LocalDateTime.now());
-//            userRepository.save(user);
-//
-//            return ResponseHelper.getResponseSearchMess(HttpStatus.OK, new ResponseMess(0, "INSERT SUCCESSFULLY"));
-            String keycloackId = jwt.getClaimAsString("sub");//Lay id keycloack
-            Optional<User> user = userRepository.findByKeycloakId(keycloackId);
-            if(user == null){
-                return ResponseHelper.getResponseSearchMess(HttpStatus.BAD_REQUEST, new ResponseMess(0, "User is required"));
-            }else {
+        try {
+            String keycloackId = jwt.getClaimAsString("sub");
 
-                Statususer status = statusRepository
-                        .findById(req.getStatus())
-                        .orElseThrow(() -> new RuntimeException("Status không tồn tại"));
-
-                User newUser = new User();
-                newUser.setUsername(req.getUsername());
-                newUser.setEmail(req.getEmail());
-                newUser.setName(req.getName());
-                newUser.setSurname(req.getSurname());
-                newUser.setDescription(req.getDescription());
-                newUser.setPhoto(req.getPhoto());
-                newUser.setStatus(status);
-                newUser.setFirstname(req.getFirstname());
-                newUser.setLastname(req.getLastname());
-                newUser.setKeycloakId(keycloackId);
-
-                userRepository.save(newUser);
-
-                return ResponseHelper.getResponseSearchMess(HttpStatus.OK, new ResponseMess(0, "INSERT SUCCESSFULLY"));
+            Optional<User> existingUser = userRepository.findByKeycloakId(keycloackId);
+            if (existingUser.isPresent()) {
+                return ResponseHelper.getResponseSearchMess(HttpStatus.OK, new ResponseMess(0, "User already exists (Synced)"));
             }
+
+            Statususer status = statusRepository
+                    .findById(req.getStatus())
+                    .orElseThrow(() -> new RuntimeException("Status không tồn tại"));
+
+            User newUser = new User();
+            newUser.setUsername(req.getUsername());
+            newUser.setEmail(req.getEmail());
+            newUser.setName(req.getName());
+            newUser.setSurname(req.getSurname());
+            newUser.setDescription(req.getDescription());
+            newUser.setStatus(status);
+            newUser.setFirstname(req.getFirstname());
+            newUser.setLastname(req.getLastname());
+            newUser.setKeycloakId(keycloackId);
+
+//            if(req.getPhoto() != null) newUser.setPhoto(req.getPhoto());
+
+            userRepository.save(newUser);
+
+            return ResponseHelper.getResponseSearchMess(HttpStatus.OK, new ResponseMess(0, "INSERT SUCCESSFULLY"));
 
         } catch (Exception e) {
             logger.error("Lỗi hệ thống: " + e.getMessage());
@@ -234,4 +182,37 @@ public class UserServiceImpl implements UserService {
                     .body(new MessageResponse(Status.EXCEPTION, Message.EXCEPTION, false, true));
         }
     }
+
+    @Override
+    @Transactional
+    public ResponseEntity<?> uploadImg(String username, String url) {
+        try {
+            if (url == null || url.trim().isEmpty()) {
+                return ResponseHelper.getResponseSearchMess(
+                        HttpStatus.BAD_REQUEST,
+                        new ResponseMess(1, "Photo URL is required")
+                );
+            }
+            Optional<User> userOpt = userRepository.findByUsername(username);
+            if (userOpt.isEmpty()) {
+                return ResponseHelper.getResponseSearchMess(
+                        HttpStatus.NOT_FOUND,
+                        new ResponseMess(1, "User not found")
+                );
+            }
+            User user = userOpt.get();
+            user.setPhoto(url);
+            userRepository.save(user);
+            return ResponseHelper.getResponseSearchMess(
+                    HttpStatus.OK,
+                    new ResponseMess(0, "UPDATE AVATAR SUCCESSFULLY")
+            );
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ResponseMess(1, "SYSTEM ERROR: " + e.getMessage()));
+        }
+    }
+
 }

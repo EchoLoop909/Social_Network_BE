@@ -10,6 +10,7 @@ public class PathResources {
     public static final String UPDATE ="/update";
     public static final String POSTLIKE ="/postlike";
     public static final String COMMENT ="/comment";
+    public static final String UpdaloadImg ="/updaloadimg";
     public static final String CREATECOMMENT ="/createcomment";
     public static final String GETCOMMENT ="/getcomment";
     public static final String UPDATECOMMENT ="/updatecomment";
