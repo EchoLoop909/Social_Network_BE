@@ -43,6 +43,7 @@ public class PostServiceImpl implements PostService {
 
     @Autowired
     private PostRepository postRepository;
+
     @Override
     public Object getList(String id,String userId, String postId,int pageIdx, int pageSize) {
         try{
