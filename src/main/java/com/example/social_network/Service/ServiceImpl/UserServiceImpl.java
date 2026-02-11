@@ -80,7 +80,7 @@ public class UserServiceImpl implements UserService {
 
             Optional<User> existingUser = userRepository.findByKeycloakId(keycloackId);
             if (existingUser.isPresent()) {
-                return ResponseHelper.getResponseSearchMess(HttpStatus.OK, new ResponseMess(0, "User already exists (Synced)"));
+                return ResponseHelper.getResponseSearchMess(HttpStatus.OK, new ResponseMess(0, "User already exists "));
             }
 
             Statususer status = statusRepository

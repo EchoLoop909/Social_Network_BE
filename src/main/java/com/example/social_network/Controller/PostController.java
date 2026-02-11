@@ -3,12 +3,16 @@ package com.example.social_network.Controller;
 import com.example.social_network.Config.Cloudinary.CloudinaryService;
 import com.example.social_network.Payload.Util.PathResources;
 import com.example.social_network.Service.PostService;
+import com.example.social_network.models.Dto.DeleteDto;
+import com.example.social_network.models.Dto.Posts.PostInsertDto;
+import com.example.social_network.models.Dto.Posts.PostUpdateDto;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
 
 @RestController
@@ -38,5 +42,26 @@ public class PostController {
                           @RequestParam(defaultValue = "1") int pageIdx,
                           @RequestParam(defaultValue = "100") int pageSize){
         return postService.getList(id,userId,postId,pageIdx -1,pageSize);
+    }
+
+    @PostMapping(PathResources.INSERT)
+    public ResponseEntity<?> insert(@RequestBody PostInsertDto dto,
+                                    HttpServletRequest request) {
+        String ip = request.getRemoteAddr();
+        return postService.insert(dto, ip);
+    }
+
+    @PostMapping(PathResources.UPDATE)
+    public ResponseEntity<?> update(@RequestBody PostUpdateDto dto,
+                                    HttpServletRequest request) {
+        String ip = request.getRemoteAddr();
+        return postService.update(dto, ip);
+    }
+
+    @PostMapping(PathResources.DELETE)
+    public ResponseEntity<?> delete(@RequestBody DeleteDto dto,
+                                    HttpServletRequest request) {
+        String ip = request.getRemoteAddr();
+        return postService.delete(dto, ip);
     }
 }
