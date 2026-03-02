@@ -1,10 +1,9 @@
 package com.example.social_network.Service.ServiceImpl;
 
-import com.cloudinary.Cloudinary;
 import com.example.social_network.Payload.Response.Message;
 import com.example.social_network.Payload.Response.MessageResponse;
 import com.example.social_network.Payload.Util.Status;
-import com.example.social_network.Repository.StatususerRepository;
+import com.example.social_network.Repository.StatusRepository;
 import com.example.social_network.ResHelper.ResponseHelper;
 import com.example.social_network.models.CreateUserRequestDTO;
 import com.example.social_network.Repository.UserRepository;
@@ -29,7 +28,6 @@ import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
 import javax.transaction.Transactional;
-import java.time.LocalDateTime;
 import java.util.*;
 
 @Service
@@ -41,7 +39,7 @@ public class UserServiceImpl implements UserService {
     private UserRepository userRepository;
 
     @Autowired
-    private StatususerRepository statusRepository;
+    private StatusRepository statusRepository;
 
     @Value("${keycloak.auth-server-url}")
     String serverUrl;

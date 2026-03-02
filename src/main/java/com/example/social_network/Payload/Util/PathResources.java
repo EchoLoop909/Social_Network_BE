@@ -7,6 +7,8 @@ public class PathResources {
     public static final String GetUser ="/getuser";
     public static final String GETPOST ="/getpost";
     public static final String DELETE ="/delete";
+    public static final String LIKE ="/like";
+    public static final String LIKEPOST ="/likepost";
     public static final String UPDATE ="/update";
     public static final String POSTLIKE ="/postlike";
     public static final String COMMENT ="/comment";

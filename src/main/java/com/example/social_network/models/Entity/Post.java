@@ -9,6 +9,7 @@ import java.util.*;
 @Entity
 @Table(name = "posts")
 @Data
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Post implements Serializable {
 
     @Id

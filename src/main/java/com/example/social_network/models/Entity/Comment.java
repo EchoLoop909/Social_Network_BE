@@ -13,6 +13,7 @@ import java.util.*;
 @Entity
 @Table(name = "comments")
 @Data
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Comment implements Serializable {
 
     @Id
