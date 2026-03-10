@@ -176,8 +176,10 @@ public class UserServiceImpl implements UserService {
             );
         } catch (Exception e) {
             logger.error("error: " + e.getMessage());
-            return ResponseEntity.badRequest()
-                    .body(new MessageResponse(Status.EXCEPTION, Message.EXCEPTION, false, true));
+            e.printStackTrace();
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ResponseMess(1, "SYSTEM ERROR: " + e.getMessage()));
         }
     }
 

@@ -55,9 +55,9 @@ public class PostServiceImpl implements PostService {
                     return ResponseHelper.getResponses(results, postsPage.getTotalElements(), postsPage.getTotalPages(), HttpStatus.OK);
                 } catch (Exception e) {
                     logger.error("error: " + e.getMessage());
-                    return ResponseEntity.badRequest()
-                            .body(new MessageResponse(Status.EXCEPTION, Message.EXCEPTION, false, true));
-                }
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body("GETLIST POST FAILED: " + e.getMessage());
+        }
     }
 
     @Override

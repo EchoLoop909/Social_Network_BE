@@ -5,7 +5,7 @@ public class PathResources {
     public static final String IMAGES ="/images";
     public static final String INSERT ="/insert";
     public static final String GetUser ="/getuser";
-    public static final String GETPOST ="/getpost";
+    public static final String MESSAGE ="/message";
     public static final String DELETE ="/delete";
     public static final String LIKE ="/like";
     public static final String LIKEPOST ="/likepost";
