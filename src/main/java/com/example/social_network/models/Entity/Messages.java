@@ -1,5 +1,6 @@
 package com.example.social_network.models.Entity;
 
+import com.example.social_network.models.Enum.MessageType;
 import lombok.Data;
 import javax.persistence.*;
 import java.io.Serializable;
@@ -30,9 +31,14 @@ public class Messages implements Serializable {
     @Column(name = "photo")
     private String photo;
 
-    // Thêm loại tin nhắn: TEXT, IMAGE, SYSTEM (VD: "User A đã thêm User B vào nhóm")
-    @Column(name = "message_type")
-    private String messageType;
+    // Chia sẻ bài viết qua tin nhắn (nullable — chỉ có khi messageType = SHARED_POST)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_shared_post")
+    private Post sharedPost;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "message_type", nullable = false, length = 15)
+    private MessageType messageType; // TEXT, IMAGE, VIDEO, SHARED_POST, SYSTEM
 
     @Column(name = "create_time", nullable = false)
     private LocalDateTime createTime;
@@ -40,6 +46,7 @@ public class Messages implements Serializable {
     @PrePersist
     public void prePersist() {
         if (id == null) id = UUID.randomUUID().toString();
+        if (messageType == null) messageType = MessageType.TEXT;
         createTime = LocalDateTime.now();
     }
 }

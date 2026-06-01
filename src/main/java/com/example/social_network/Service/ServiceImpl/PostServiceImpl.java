@@ -1,8 +1,5 @@
 package com.example.social_network.Service.ServiceImpl;
 
-import com.example.social_network.Payload.Response.Message;
-import com.example.social_network.Payload.Response.MessageResponse;
-import com.example.social_network.Payload.Util.Status;
 import com.example.social_network.Repository.PostRepository;
 import com.example.social_network.Repository.UserRepository;
 import com.example.social_network.ResHelper.ResponseHelper;
@@ -77,7 +74,7 @@ public class PostServiceImpl implements PostService {
             // ✅ Map tay
             Post post = new Post();
             post.setText(dto.getText());
-            post.setPhoto(dto.getPhoto());
+//            post.setPhoto(dto.getPhoto());
             post.setUser(user);
             // id, createTime, isPinned sẽ auto set ở @PrePersist
 
@@ -106,7 +103,7 @@ public class PostServiceImpl implements PostService {
 
             // ✅ Update tay từng field
             post.setText(dto.getText());
-            post.setPhoto(dto.getPhoto());
+//            post.setPhoto(dto.getPhoto());
             if (dto.getIsPinned() != null) {
                 post.setIsPinned(dto.getIsPinned());
             }

@@ -1,5 +1,6 @@
 package com.example.social_network.models.Entity;
 
+import com.example.social_network.models.Enum.LikeTargetType;
 import lombok.Data;
 import javax.persistence.*;
 import java.io.*;
@@ -9,7 +10,7 @@ import java.util.UUID;
 @Entity
 @Table(
         name = "likes",
-        uniqueConstraints = @UniqueConstraint(columnNames = {"id_post", "id_user"})
+        uniqueConstraints = @UniqueConstraint(columnNames = {"id_user", "target_type", "target_id"})
 )
 @Data
 public class Like implements Serializable {
@@ -18,9 +19,14 @@ public class Like implements Serializable {
     @Column(name = "id_like", length = 36, nullable = false, updatable = false)
     private String id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "id_post", nullable = false)
-    private Post post;
+    // Polymorphic: POST hoặc COMMENT
+    @Enumerated(EnumType.STRING)
+    @Column(name = "target_type", nullable = false, length = 10)
+    private LikeTargetType targetType;
+
+    // ID của Post hoặc Comment được like (không có FK cứng để hỗ trợ polymorphic)
+    @Column(name = "target_id", nullable = false, length = 36)
+    private String targetId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_user", nullable = false)

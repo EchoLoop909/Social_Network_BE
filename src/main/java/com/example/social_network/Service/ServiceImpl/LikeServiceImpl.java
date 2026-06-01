@@ -8,6 +8,7 @@ import com.example.social_network.Service.LikeService;
 import com.example.social_network.models.Entity.Like;
 import com.example.social_network.models.Entity.Post;
 import com.example.social_network.models.Entity.User;
+import com.example.social_network.models.Enum.LikeTargetType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -56,7 +57,7 @@ public class LikeServiceImpl implements LikeService {
             }
 
             // 4. Kiểm tra xem User đã like Post này chưa
-            Optional<Like> existingLike = likeRepository.findByPost_IdAndUser_Id(post.getId(), user.getId());
+            Optional<Like> existingLike = likeRepository.findByTargetTypeAndTargetIdAndUser_Id(LikeTargetType.POST, post.getId(), user.getId());
 
             if (existingLike.isPresent()) {
                 // NẾU ĐÃ CÓ RỒI -> XÓA ĐI (UNLIKE)
@@ -67,7 +68,8 @@ public class LikeServiceImpl implements LikeService {
                 // NẾU CHƯA CÓ -> THÊM MỚI VÀO (LIKE)
                 Like newLike = new Like();
                 newLike.setUser(user);
-                newLike.setPost(post);
+                newLike.setTargetType(LikeTargetType.POST);
+                newLike.setTargetId(post.getId());
                 // id và createTime sẽ được auto set thông qua @PrePersist trong Entity Like
 
                 likeRepository.save(newLike);

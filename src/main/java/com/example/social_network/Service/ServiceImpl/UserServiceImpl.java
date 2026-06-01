@@ -54,6 +54,7 @@ public class UserServiceImpl implements UserService {
     String clientSecret;
 
     private final RestTemplate restTemplate = new RestTemplate();
+
     public String getAdminToken() {
         String url = serverUrl + "/realms/" + realm +"/protocol/openid-connect/token";
 

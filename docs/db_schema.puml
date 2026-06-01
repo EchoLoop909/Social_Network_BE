@@ -1,0 +1,303 @@
+@startuml Social_Network_DB_Schema
+!define TABLE(name,desc) class name as "desc" << (T,#FFAAAA) >>
+!define PK(x) <u>x</u>
+!define FK(x) <i>x</i>
+!define NN ** NOT NULL **
+!define UQ ~~UNIQUE~~
+
+hide methods
+hide stereotypes
+
+skinparam class {
+    BackgroundColor #1e1e2e
+    BorderColor #7c3aed
+    ArrowColor #a78bfa
+    FontColor #e2e8f0
+    HeaderBackgroundColor #2d1b69
+    HeaderFontColor #c4b5fd
+    FontSize 12
+    BorderThickness 1.5
+}
+skinparam classFontStyle Bold
+skinparam shadowing false
+skinparam padding 8
+skinparam roundcorner 10
+skinparam linetype ortho
+
+title <size:20><color:#c4b5fd><b>Social Network — Full Database Schema</b></color></size>\n<size:12><color:#94a3b8>Instagram-like | MySQL 8.x | v2.0</color></size>
+
+' =====================================================
+'  LOOKUP / REFERENCE TABLES
+' =====================================================
+
+TABLE(status, "status\n[Lookup]") {
+    PK(id_status)       : VARCHAR(36)
+    text                : VARCHAR(100) UNIQUE NOT NULL
+}
+
+TABLE(report_reasons, "report_reasons\n[Lookup]") {
+    PK(id_report_reason) : VARCHAR(36)
+    reason               : VARCHAR(500) NOT NULL
+}
+
+TABLE(hashtags, "hashtags\n[NEW]") {
+    PK(id_hashtag) : VARCHAR(36)
+    name           : VARCHAR(100) UNIQUE NOT NULL
+    post_count     : INT UNSIGNED DEFAULT 0
+    created_at     : DATETIME NOT NULL
+    ..
+    IDX: name
+}
+
+' =====================================================
+'  CORE USER TABLE
+' =====================================================
+
+TABLE(users, "users\n[MODIFIED]") {
+    PK(id_user)    : VARCHAR(36)
+    username       : VARCHAR(100) UNIQUE NOT NULL
+    email          : VARCHAR(100) UNIQUE NOT NULL
+    name           : VARCHAR(100) NOT NULL
+    keycloak_id    : VARCHAR(100) NOT NULL
+    firstname      : VARCHAR(100) NOT NULL
+    lastname       : VARCHAR(100) NOT NULL
+    surname        : VARCHAR(100) NOT NULL
+    photo          : VARCHAR(2048)
+    description    : VARCHAR(2000)
+    creation_date  : DATETIME
+    deletion_date  : DATETIME
+    is_checked     : TINYINT(1) DEFAULT 0
+    <color:#34d399>is_private</color>     : TINYINT(1) NOT NULL DEFAULT 0
+    ..
+    FK(id_status)  : VARCHAR(36) NOT NULL
+    ..
+    <color:#34d399>+ is_private: 0=Public, 1=Private</color>
+}
+
+' =====================================================
+'  POST & MEDIA
+' =====================================================
+
+TABLE(posts, "posts\n[MODIFIED]") {
+    PK(id_post)    : VARCHAR(36)
+    text           : VARCHAR(5000)
+    <color:#ef4444>-- photo DROPPED --</color>
+    <color:#34d399>post_type</color>     : ENUM(IMAGE,VIDEO,CAROUSEL,TEXT)
+    <color:#34d399>visibility</color>    : ENUM(PUBLIC,FOLLOWERS,PRIVATE)
+    create_time    : DATETIME NOT NULL
+    is_pinned      : TINYINT(1) DEFAULT 0
+    ..
+    FK(id_user)    : VARCHAR(36) NOT NULL
+    ..
+    IDX: (id_user, create_time DESC)
+    IDX: (visibility, create_time DESC)
+}
+
+TABLE(post_media, "post_media\n[NEW — Carousel]") {
+    PK(id_media)       : VARCHAR(36)
+    media_url          : VARCHAR(2048) NOT NULL
+    media_type         : ENUM(IMAGE, VIDEO) NOT NULL
+    display_order      : TINYINT UNSIGNED NOT NULL DEFAULT 0
+    width              : SMALLINT UNSIGNED
+    height             : SMALLINT UNSIGNED
+    duration_sec       : SMALLINT UNSIGNED
+    ..
+    FK(id_post)        : VARCHAR(36) NOT NULL
+    ..
+    UQ: (id_post, display_order)
+}
+
+TABLE(post_hashtags, "post_hashtags\n[NEW — Junction]") {
+    PK(id_post)    : VARCHAR(36)
+    PK(id_hashtag) : VARCHAR(36)
+}
+
+TABLE(post_user_tags, "post_user_tags\n[NEW — @Mention in photo]") {
+    PK(id_post)    : VARCHAR(36)
+    PK(id_user)    : VARCHAR(36)
+    x_position     : DECIMAL(5,2)
+    y_position     : DECIMAL(5,2)
+    ..
+    IDX: (id_user)
+}
+
+' =====================================================
+'  COMMENTS & LIKES
+' =====================================================
+
+TABLE(comments, "comments\n[MODIFIED]") {
+    PK(id_comment)         : VARCHAR(36)
+    <color:#34d399>parent_comment_id</color>  : VARCHAR(36) NULL
+    text                   : VARCHAR(2000) NOT NULL
+    create_time            : DATETIME NOT NULL
+    ..
+    FK(id_user)            : VARCHAR(36) NOT NULL
+    FK(id_post)            : VARCHAR(36) NOT NULL
+    ..
+    <color:#34d399>Self-FK: parent_comment_id → id_comment</color>
+    <color:#ef4444>Replaces: replies (ManyToMany) table</color>
+}
+
+TABLE(likes, "likes\n[MODIFIED — Polymorphic]") {
+    PK(id_like)      : VARCHAR(36)
+    <color:#34d399>target_type</color>    : ENUM(POST, COMMENT) NOT NULL
+    <color:#34d399>target_id</color>      : VARCHAR(36) NOT NULL
+    create_time      : DATETIME NOT NULL
+    ..
+    FK(id_user)      : VARCHAR(36) NOT NULL
+    ..
+    <color:#ef4444>-- id_post FK DROPPED --</color>
+    UQ: (id_user, target_type, target_id)
+    IDX: (target_type, target_id)
+}
+
+' =====================================================
+'  FOLLOW SYSTEM
+' =====================================================
+
+TABLE(followerships, "followerships\n[MODIFIED]") {
+    PK(id_followership)  : VARCHAR(36)
+    <color:#34d399>status</color>               : ENUM(PENDING, ACCEPTED)
+    create_time          : DATETIME NOT NULL
+    ..
+    FK(id_user_checked)  : VARCHAR(36) NOT NULL
+    FK(id_user_follower) : VARCHAR(36) NOT NULL
+    ..
+    UQ: (id_user_checked, id_user_follower)
+    IDX: (id_user_follower, status, id_user_checked)
+    IDX: (id_user_checked, status)
+}
+
+TABLE(friendships, "friendships\n[UNCHANGED]") {
+    PK(id_friendship)       : VARCHAR(36)
+    status                  : BOOLEAN NOT NULL DEFAULT false
+    create_time             : DATETIME NOT NULL
+    ..
+    FK(id_user_transmitter) : VARCHAR(36) NOT NULL
+    FK(id_user_receiver)    : VARCHAR(36) NOT NULL
+}
+
+' =====================================================
+'  MESSAGING
+' =====================================================
+
+TABLE(conversations, "conversations\n[UNCHANGED]") {
+    PK(id_conversation) : VARCHAR(36)
+    name                : VARCHAR(255)
+    type                : ENUM(SINGLE, GROUP) NOT NULL
+    create_time         : DATETIME NOT NULL
+    last_message_time   : DATETIME
+    ..
+    IDX: (last_message_time DESC)
+}
+
+TABLE(participants, "participants\n[UNCHANGED]") {
+    PK(id_participant)   : VARCHAR(36)
+    last_read_message_id : VARCHAR(36)
+    joined_time          : DATETIME NOT NULL
+    ..
+    FK(id_conversation)  : VARCHAR(36) NOT NULL
+    FK(id_user)          : VARCHAR(36) NOT NULL
+    ..
+    IDX: (id_user)
+}
+
+TABLE(messages, "messages\n[MODIFIED]") {
+    PK(id_message)          : VARCHAR(36)
+    text                    : VARCHAR(3000)
+    photo                   : VARCHAR(2048)
+    <color:#34d399>id_shared_post</color>         : VARCHAR(36) NULL
+    message_type            : ENUM(TEXT,IMAGE,VIDEO,SHARED_POST,SYSTEM)
+    create_time             : DATETIME NOT NULL
+    ..
+    FK(id_conversation)     : VARCHAR(36) NOT NULL
+    FK(id_user_transmitter) : VARCHAR(36) NOT NULL
+    ..
+    IDX: (id_conversation, create_time DESC)
+}
+
+' =====================================================
+'  STORIES
+' =====================================================
+
+TABLE(stories, "stories\n[NEW]") {
+    PK(id_story)   : VARCHAR(36)
+    media_url      : VARCHAR(2048) NOT NULL
+    media_type     : ENUM(IMAGE, VIDEO) NOT NULL
+    caption        : VARCHAR(2200)
+    created_at     : DATETIME NOT NULL
+    expires_at     : DATETIME NOT NULL
+    is_archived    : TINYINT(1) DEFAULT 0
+    ..
+    FK(id_user)    : VARCHAR(36) NOT NULL
+    ..
+    IDX: (id_user, expires_at)
+}
+
+TABLE(story_views, "story_views\n[NEW]") {
+    PK(id_story) : VARCHAR(36)
+    PK(id_user)  : VARCHAR(36)
+    viewed_at    : DATETIME NOT NULL
+}
+
+' =====================================================
+'  REPORTS
+' =====================================================
+
+TABLE(reports, "reports\n[UNCHANGED]") {
+    PK(id_report)        : VARCHAR(36)
+    extra_information    : VARCHAR(2000)
+    create_time          : DATETIME NOT NULL
+    ..
+    FK(id_post)          : VARCHAR(36) NOT NULL
+    FK(id_user)          : VARCHAR(36) NOT NULL
+    FK(id_report_reason) : VARCHAR(36) NOT NULL
+}
+
+' =====================================================
+'  RELATIONSHIPS
+' =====================================================
+
+' -- User base --
+status          "1" --o{ "N" users           : "has status"
+users           "1" --o{ "N" posts            : "creates"
+users           "1" --o{ "N" comments         : "writes"
+users           "1" --o{ "N" stories          : "posts"
+
+' -- Post media & tags --
+posts           "1" --o{ "N" post_media       : "has media"
+posts           "1" --o{ "N" post_hashtags    : "tagged with"
+post_hashtags   }o--|| "1" hashtags           : "refers to"
+posts           "1" --o{ "N" post_user_tags   : "tags users"
+post_user_tags  }o--|| "1" users              : "is tagged"
+
+' -- Comments (threaded) --
+posts           "1" --o{ "N" comments         : "has comments"
+comments        "0..1" --o{ "N" comments      : "parent → replies\n(self-reference)"
+
+' -- Likes (polymorphic) --
+users           "1" --o{ "N" likes            : "gives like"
+
+' -- Follow --
+users           "1" --o{ "N" followerships    : "is followed\n(id_user_checked)"
+users           "1" --o{ "N" followerships    : "follows\n(id_user_follower)"
+users           "1" --o{ "N" friendships      : "sends\n(transmitter)"
+users           "1" --o{ "N" friendships      : "receives\n(receiver)"
+
+' -- Messaging --
+users           "1" --o{ "N" participants     : "joins"
+conversations   "1" --o{ "N" participants     : "has members"
+conversations   "1" --o{ "N" messages         : "contains"
+users           "1" --o{ "N" messages         : "sends"
+messages        }o--o| "0..1" posts           : "shares post\n(id_shared_post)"
+
+' -- Stories --
+stories         "1" --o{ "N" story_views      : "viewed by"
+story_views     }o--|| "1" users              : "viewer"
+
+' -- Reports --
+reports         }o--|| "1" posts              : "reports"
+reports         }o--|| "1" users              : "reporter"
+reports         }o--|| "1" report_reasons     : "reason"
+
+@enduml

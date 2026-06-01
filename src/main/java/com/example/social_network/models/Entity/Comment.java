@@ -34,13 +34,15 @@ public class Comment implements Serializable {
     @JoinColumn(name = "id_post", nullable = false)
     private Post post;
 
+    // Threaded comments: NULL = comment gốc; có giá trị = Reply
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_comment_id", referencedColumnName = "id_comment")
     @JsonIgnore
-    @ManyToMany
-    @JoinTable(
-            name = "replies",
-            joinColumns = @JoinColumn(name = "id_comment"),
-            inverseJoinColumns = @JoinColumn(name = "id_reply")
-    )
+    private Comment parentComment;
+
+    // Danh sách các reply trực tiếp của comment này
+    @JsonIgnore
+    @OneToMany(mappedBy = "parentComment", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Comment> replies = new ArrayList<>();
 
     @PrePersist

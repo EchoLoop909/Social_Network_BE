@@ -66,6 +66,9 @@ public class User implements Serializable {
     @Column(name = "is_checked")
     private Boolean isChecked;
 
+    @Column(name = "is_private", nullable = false)
+    private Boolean isPrivate; // false = Public, true = Private account
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_status", nullable = false)
     private Statususer status;
@@ -83,5 +86,6 @@ public class User implements Serializable {
         if (id == null) id = UUID.randomUUID().toString();
         creationDate = LocalDateTime.now();
         isChecked = false;
+        isPrivate = false;
     }
 }

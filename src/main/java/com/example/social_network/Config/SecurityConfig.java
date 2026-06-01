@@ -57,17 +57,25 @@ public class SecurityConfig {
                     return config;
                 }))
                 .authorizeRequests(auth -> auth
+                        // 1. Các API Public (Không yêu cầu token)
                         .antMatchers(
-                                "/auth/login",
-                                "/swagger-ui/**",
-                                "/v3/api-docs/**",
-                                "/images/**",
-                                "/auth/**",
+                                "/auth/**",       // Các API liên quan đến xác thực (đăng nhập, đăng ký,...)
+                                "/swagger-ui/**", // Giao diện Swagger
+                                "/v3/api-docs/**",// Tài liệu API
+                                "/swagger-ui.html",
+                                "/images/**"      // Nơi chứa ảnh public
+                        ).permitAll()
+
+                        // 2. Các API Private (Bắt buộc phải có token hợp lệ từ Keycloak)
+                        .antMatchers(
                                 "/like/**",
                                 "/comment/**",
-                                "/message/**",
-                                "/swagger-ui.html"
-                        ).permitAll()
+                                "/images/**",
+                                "/message/**"
+                                // Thêm các endpoint khác bạn muốn private vào đây
+                        ).authenticated()
+
+                        // 3. Tất cả các request khác đều cần authentication
                         .anyRequest().authenticated()
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2
