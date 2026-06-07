@@ -1,7 +1,27 @@
-/target
-/build
-.idea
+# Build và Target (Nặng nhất, bắt buộc phải loại bỏ)
+/target/
+build/
+out/
+
+# IDE Configuration (Các file cấu hình của IntelliJ IDEA, Eclipse)
+.idea/
 *.iml
+*.iws
+*.ipr
+.classpath
+.project
+.settings/
+
+# Biên dịch và Đóng gói
 *.class
 *.jar
+*.war
+*.ear
+
+# Log files (Sửa lại cú pháp chuẩn)
 *.log
+/logs/
+
+# File hệ thống điều hành sinh ra tự động
+.DS_Store
+Thumbs.db
