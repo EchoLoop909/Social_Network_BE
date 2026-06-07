@@ -1,7 +1,7 @@
 package com.example.social_network.models.Entity;
 
 import com.example.social_network.models.Enum.MessageType;
-import lombok.Data;
+import lombok.*;
 import javax.persistence.*;
 import java.io.Serializable;
 import java.time.LocalDateTime;
@@ -10,6 +10,9 @@ import java.util.UUID;
 @Entity
 @Table(name = "messages")
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Messages implements Serializable {
 
     @Id

@@ -1,6 +1,6 @@
 package com.example.social_network.models.Entity;
 
-import lombok.Data;
+import lombok.*;
 import javax.persistence.*;
 import java.io.*;
 import java.time.LocalDateTime;
@@ -9,6 +9,9 @@ import java.util.UUID;
 @Entity
 @Table(name = "reports")
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Report implements Serializable {
 
     @Id

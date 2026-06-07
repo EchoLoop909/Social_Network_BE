@@ -1,6 +1,6 @@
 package com.example.social_network.models.Entity;
 
-import lombok.Data;
+import lombok.*;
 import javax.persistence.*;
 import java.io.*;
 import java.util.UUID;
@@ -8,6 +8,9 @@ import java.util.UUID;
 @Entity
 @Table(name = "report_reasons")
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class ReportReason implements Serializable {
 
     @Id

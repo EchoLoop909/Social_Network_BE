@@ -3,7 +3,7 @@ package com.example.social_network.models.Entity;
 import com.example.social_network.models.Enum.MediaType;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import lombok.Data;
+import lombok.*;
 
 import javax.persistence.*;
 import java.io.Serializable;
@@ -15,6 +15,9 @@ import java.util.UUID;
 @Entity
 @Table(name = "stories")
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Story implements Serializable {
 
@@ -46,6 +49,10 @@ public class Story implements Serializable {
     // true = đã lưu vào Highlights (không bị xóa sau 24h)
     @Column(name = "is_archived", nullable = false)
     private Boolean isArchived;
+
+    // Metadata JSON (sticker, nhạc, tọa độ, text overlay, v.v.)
+    @Column(name = "metadata", columnDefinition = "JSON")
+    private String metadata;
 
     @JsonIgnore
     @OneToMany(mappedBy = "story", cascade = CascadeType.ALL, orphanRemoval = true)

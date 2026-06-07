@@ -1,9 +1,7 @@
 package com.example.social_network.models.Entity;
 
-
 import com.fasterxml.jackson.annotation.*;
 import lombok.Data;
-import org.hibernate.annotations.GenericGenerator;
 
 import javax.persistence.*;
 import java.io.*;
@@ -13,7 +11,7 @@ import java.util.*;
 @Entity
 @Table(name = "comments")
 @Data
-@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+@JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
 public class Comment implements Serializable {
 
     @Id
@@ -34,20 +32,15 @@ public class Comment implements Serializable {
     @JoinColumn(name = "id_post", nullable = false)
     private Post post;
 
-    // Threaded comments: NULL = comment gốc; có giá trị = Reply
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "parent_comment_id", referencedColumnName = "id_comment")
     @JsonIgnore
-    private Comment parentComment;
-
-    // Danh sách các reply trực tiếp của comment này
-    @JsonIgnore
-    @OneToMany(mappedBy = "parentComment", cascade = CascadeType.ALL, orphanRemoval = true)
+    @ManyToMany
+    @JoinTable(name = "replies", joinColumns = @JoinColumn(name = "id_comment"), inverseJoinColumns = @JoinColumn(name = "id_reply"))
     private List<Comment> replies = new ArrayList<>();
 
     @PrePersist
     public void prePersist() {
-        if (id == null) id = UUID.randomUUID().toString();
+        if (id == null)
+            id = UUID.randomUUID().toString();
         createTime = LocalDateTime.now();
     }
 }

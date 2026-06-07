@@ -13,6 +13,9 @@ import java.util.UUID;
         uniqueConstraints = @UniqueConstraint(columnNames = {"id_user_checked", "id_user_follower"})
 )
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Followership implements Serializable {
 
     @Id

@@ -8,10 +8,11 @@ import javax.persistence.*;
 import java.io.*;
 import java.time.LocalDateTime;
 import java.util.*;
+
 @Entity
 @Table(name = "posts")
 @Data
-@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+@JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
 public class Post implements Serializable {
 
     @Id
@@ -43,20 +44,19 @@ public class Post implements Serializable {
     @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Comment> comments = new ArrayList<>();
 
-    // NOTE: likes không thể dùng @OneToMany mappedBy vì Like dùng Polymorphic pattern
-    // (target_type + target_id thay cho FK cứng). Dùng LikeRepository để query thay thế:
-    // likeRepository.findByTargetTypeAndTargetId(LikeTargetType.POST, postId)
-
     @JsonIgnore
     @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<PostMedia> mediaList = new ArrayList<>();
 
     @PrePersist
     public void prePersist() {
-        if (id == null) id = UUID.randomUUID().toString();
+        if (id == null)
+            id = UUID.randomUUID().toString();
         createTime = LocalDateTime.now();
         isPinned = false;
-        if (postType == null) postType = PostType.IMAGE;
-        if (visibility == null) visibility = PostVisibility.PUBLIC;
+        if (postType == null)
+            postType = PostType.IMAGE;
+        if (visibility == null)
+            visibility = PostVisibility.PUBLIC;
     }
 }

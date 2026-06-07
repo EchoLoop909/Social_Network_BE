@@ -12,6 +12,9 @@ import java.util.UUID;
         uniqueConstraints = @UniqueConstraint(columnNames = {"id_user_transmitter", "id_user_receiver"})
 )
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Friendship implements Serializable {
 
     @Id
