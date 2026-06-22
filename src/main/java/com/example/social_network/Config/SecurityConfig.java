@@ -34,17 +34,11 @@ import java.util.List;
 )
 public class SecurityConfig {
 
-    private final CustomJwtAuthenticationConverter customJwtConverter;
-
     static {
         // --- 2. Sửa lại dòng này dùng Jwt (của security) chứ không phải Properties ---
         SpringDocUtils.getConfig().addRequestWrapperToIgnore(Jwt.class);
     }
 
-    // Inject Converter bạn vừa tạo ở Bước 1 vào đây
-    public SecurityConfig(CustomJwtAuthenticationConverter customJwtConverter) {
-        this.customJwtConverter = customJwtConverter;
-    }
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
@@ -66,7 +60,7 @@ public class SecurityConfig {
                                 "/images/**"      // Nơi chứa ảnh public
                         ).permitAll()
 
-                        // 2. Các API Private (Bắt buộc phải có token hợp lệ từ Keycloak)
+                        // 2. Các API Private (Bắt buộc phải có token hợp lệ)
                         .antMatchers(
                                 "/like/**",
                                 "/comment/**",
@@ -77,12 +71,6 @@ public class SecurityConfig {
 
                         // 3. Tất cả các request khác đều cần authentication
                         .anyRequest().authenticated()
-                )
-                .oauth2ResourceServer(oauth2 -> oauth2
-                        .jwt(jwt -> jwt
-                                // Gắn Converter vào luồng kiểm tra JWT
-                                .jwtAuthenticationConverter(customJwtConverter)
-                        )
                 );
 
         return http.build();

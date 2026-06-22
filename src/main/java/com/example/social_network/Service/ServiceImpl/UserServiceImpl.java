@@ -41,16 +41,16 @@ public class UserServiceImpl implements UserService {
     @Autowired
     private StatusRepository statusRepository;
 
-    @Value("${keycloak.auth-server-url}")
+    @Value("${keycloak.auth-server-url:}")
     String serverUrl;
 
-    @Value("${keycloak.realm}")
+    @Value("${keycloak.realm:}")
     String realm;
 
-    @Value("${idp.client-id}")
+    @Value("${idp.client-id:}")
     String clientId;
 
-    @Value("${idp.client-secret}")
+    @Value("${idp.client-secret:}")
     String clientSecret;
 
     private final RestTemplate restTemplate = new RestTemplate();
