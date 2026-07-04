@@ -1,5 +1,6 @@
 package com.example.social_network.models.Entity;
 
+import com.example.social_network.models.Enum.PostStatus;
 import com.example.social_network.models.Enum.PostType;
 import com.example.social_network.models.Enum.PostVisibility;
 import com.fasterxml.jackson.annotation.*;
@@ -30,11 +31,23 @@ public class Post implements Serializable {
     @Column(name = "visibility", nullable = false, length = 20)
     private PostVisibility visibility; // PUBLIC, FOLLOWERS, PRIVATE
 
+    // Trạng thái kiểm duyệt: PENDING_REVIEW -> PUBLISHED / FLAGGED
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 20)
+    private PostStatus status;
+
     @Column(name = "create_time", nullable = false)
     private LocalDateTime createTime;
 
     @Column(name = "is_pinned")
     private Boolean isPinned;
+
+    // Bộ đếm denormalized để tránh COUNT(*) tốn kém khi render bảng tin
+    @Column(name = "reaction_count", nullable = false)
+    private Integer reactionCount;
+
+    @Column(name = "comment_count", nullable = false)
+    private Integer commentCount;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_user", nullable = false)
@@ -58,5 +71,11 @@ public class Post implements Serializable {
             postType = PostType.IMAGE;
         if (visibility == null)
             visibility = PostVisibility.PUBLIC;
+        if (status == null)
+            status = PostStatus.PENDING_REVIEW;
+        if (reactionCount == null)
+            reactionCount = 0;
+        if (commentCount == null)
+            commentCount = 0;
     }
 }

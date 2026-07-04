@@ -5,9 +5,6 @@ import com.example.social_network.Repository.UserRepository;
 import com.example.social_network.models.CreateUserRequestDTO;
 import com.example.social_network.Service.UserService;
 import com.example.social_network.models.Dto.LoginRequest;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -23,9 +20,8 @@ public class AuthController {
     private UserRepository userRepository;
 
     @PostMapping("/public/api/register")
-    public ResponseEntity<?> registerApi(@RequestBody CreateUserRequestDTO req,
-                                         @AuthenticationPrincipal Jwt jwt) {
-       return userService.createUser(req,jwt);
+    public ResponseEntity<?> registerApi(@RequestBody CreateUserRequestDTO req) {
+       return userService.createUser(req);
     }
 
     @PostMapping("/login")
@@ -41,16 +37,8 @@ public class AuthController {
     }
 
     @PostMapping(PathResources.UpdaloadImg)
-    public ResponseEntity<?> uploadImg(@AuthenticationPrincipal Jwt jwt,
+    public ResponseEntity<?> uploadImg(@RequestParam String username,
                                        @RequestParam String url){
-        if (jwt == null) {
-            return ResponseEntity.status(401).body("Unauthorized");
-        }
-        String username = jwt.getClaimAsString("preferred_username");
-
-        if (username == null) {
-            username = jwt.getSubject();
-        }
         return userService.uploadImg(username,url);
     }
 }

@@ -1,15 +1,11 @@
 package com.example.social_network.models.Entity;
 
+import com.example.social_network.models.Enum.UserStatus;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonManagedReference;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 
-import javax.management.Notification;
 import javax.persistence.*;
-import java.io.Serial;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -39,9 +35,6 @@ public class User implements Serializable {
     @Column(name = "name", nullable = false, length = 100)
     private String name;
 
-    @Column(name = "keycloak_id", nullable = false, length = 100)
-    private String keycloakId;
-
     @Column(name = "firstname", nullable = false, length = 100)
     private String firstname;
 
@@ -69,9 +62,10 @@ public class User implements Serializable {
     @Column(name = "is_private", nullable = false)
     private Boolean isPrivate; // false = Public, true = Private account
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "id_status", nullable = false)
-    private Statususer status;
+    // Trạng thái tài khoản: PENDING_ACTIVATION -> ACTIVE / SUSPENDED
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 20)
+    private UserStatus status;
 
     @JsonIgnore
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
@@ -87,5 +81,6 @@ public class User implements Serializable {
         creationDate = LocalDateTime.now();
         isChecked = false;
         isPrivate = false;
+        if (status == null) status = UserStatus.PENDING_ACTIVATION;
     }
 }

@@ -1,1 +1,0 @@
-// File cleared as part of removing Keycloak configuration
