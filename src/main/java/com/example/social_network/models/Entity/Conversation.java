@@ -1,5 +1,6 @@
 package com.example.social_network.models.Entity;
 
+import com.example.social_network.models.Enum.ConversationType;
 import lombok.*;
 import javax.persistence.*;
 import java.io.Serializable;
@@ -23,8 +24,9 @@ public class Conversation implements Serializable {
     private String name;
 
     // Phân biệt: SINGLE (1-1) hoặc GROUP
-    @Column(name = "type", nullable = false)
-    private String type;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "type", nullable = false, length = 10)
+    private ConversationType type;
 
     @Column(name = "create_time", nullable = false)
     private LocalDateTime createTime;

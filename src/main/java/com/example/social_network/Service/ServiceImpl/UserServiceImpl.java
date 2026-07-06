@@ -1,31 +1,22 @@
 package com.example.social_network.Service.ServiceImpl;
 
-import com.example.social_network.Payload.Response.Message;
-import com.example.social_network.Payload.Response.MessageResponse;
-import com.example.social_network.Payload.Util.Status;
-import com.example.social_network.Repository.StatusRepository;
 import com.example.social_network.ResHelper.ResponseHelper;
 import com.example.social_network.models.CreateUserRequestDTO;
 import com.example.social_network.Repository.UserRepository;
 import com.example.social_network.Service.UserService;
 import com.example.social_network.models.Dto.LoginRequest;
 import com.example.social_network.models.Dto.ResponseMess;
-import com.example.social_network.models.Entity.Statususer;
 import com.example.social_network.models.Entity.User;
-import org.springframework.security.oauth2.jwt.Jwt;
+import com.example.social_network.models.Enum.UserStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.http.*;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.util.LinkedMultiValueMap;
-import org.springframework.util.MultiValueMap;
-import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.RestTemplate;
 
 import javax.transaction.Transactional;
 import java.util.*;
@@ -38,53 +29,13 @@ public class UserServiceImpl implements UserService {
     @Autowired
     private UserRepository userRepository;
 
-    @Autowired
-    private StatusRepository statusRepository;
-
-    @Value("${keycloak.auth-server-url:}")
-    String serverUrl;
-
-    @Value("${keycloak.realm:}")
-    String realm;
-
-    @Value("${idp.client-id:}")
-    String clientId;
-
-    @Value("${idp.client-secret:}")
-    String clientSecret;
-
-    private final RestTemplate restTemplate = new RestTemplate();
-
-    public String getAdminToken() {
-        String url = serverUrl + "/realms/" + realm +"/protocol/openid-connect/token";
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-
-        MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
-        body.add("grant_type", "client_credentials");
-        body.add("client_id", clientId);
-        body.add("client_secret", clientSecret);
-
-        HttpEntity<?> entity = new HttpEntity<>(body, headers);
-
-        ResponseEntity<Map> response = restTemplate.postForEntity(url, entity, Map.class);
-
-        return response.getBody().get("access_token").toString();
-    }
     @Override
-    public ResponseEntity<?> createUser(CreateUserRequestDTO req, Jwt jwt) {
+    public ResponseEntity<?> createUser(CreateUserRequestDTO req) {
         try {
-            String keycloackId = jwt.getClaimAsString("sub");
-
-            Optional<User> existingUser = userRepository.findByKeycloakId(keycloackId);
+            Optional<User> existingUser = userRepository.findByUsername(req.getUsername());
             if (existingUser.isPresent()) {
                 return ResponseHelper.getResponseSearchMess(HttpStatus.OK, new ResponseMess(0, "User already exists "));
             }
-
-            Statususer status = statusRepository
-                    .findById(req.getStatus())
-                    .orElseThrow(() -> new RuntimeException("Status không tồn tại"));
 
             User newUser = new User();
             newUser.setUsername(req.getUsername());
@@ -92,12 +43,10 @@ public class UserServiceImpl implements UserService {
             newUser.setName(req.getName());
             newUser.setSurname(req.getSurname());
             newUser.setDescription(req.getDescription());
-            newUser.setStatus(status);
+            // Tài khoản mới luôn ở trạng thái chờ xác thực email (theo luồng đăng ký trong tài liệu)
+            newUser.setStatus(UserStatus.PENDING_ACTIVATION);
             newUser.setFirstname(req.getFirstname());
             newUser.setLastname(req.getLastname());
-            newUser.setKeycloakId(keycloackId);
-
-//            if(req.getPhoto() != null) newUser.setPhoto(req.getPhoto());
 
             userRepository.save(newUser);
 
@@ -112,41 +61,16 @@ public class UserServiceImpl implements UserService {
     @Override
     public ResponseEntity<?> login(LoginRequest request) {
         try {
-            String url = serverUrl + "/realms/" + realm + "/protocol/openid-connect/token";
+            Optional<User> userOpt = userRepository.findByUsername(request.getUsername());
 
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-
-            MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
-            body.add("grant_type", "password");
-            body.add("client_id", clientId);
-            body.add("client_secret", clientSecret);
-            body.add("username", request.getUsername());
-            body.add("password", request.getPassword());
-
-            HttpEntity<MultiValueMap<String, String>> entity =
-                    new HttpEntity<>(body, headers);
-
-            ResponseEntity<Map> response = restTemplate.postForEntity(
-                    url,
-                    entity,
-                    Map.class
-            );
-
-            Map<String, Object> res = response.getBody();
-
-            if (res == null || !res.containsKey("access_token")) {
+            if (userOpt.isEmpty()) {
                 return ResponseEntity
                         .status(HttpStatus.UNAUTHORIZED)
-                        .body(new ResponseMess(1, "LOGIN FAILED"));
+                        .body(new ResponseMess(1, "INVALID USERNAME OR PASSWORD"));
             }
 
-            return ResponseEntity.ok(res);
+            return ResponseEntity.ok(userOpt.get());
 
-        } catch (HttpClientErrorException.Unauthorized e) {
-            return ResponseEntity
-                    .status(HttpStatus.UNAUTHORIZED)
-                    .body(new ResponseMess(1, "INVALID USERNAME OR PASSWORD"));
         } catch (Exception e) {
             return ResponseEntity
                     .status(HttpStatus.INTERNAL_SERVER_ERROR)

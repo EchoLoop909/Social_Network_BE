@@ -32,15 +32,25 @@ public class Comment implements Serializable {
     @JoinColumn(name = "id_post", nullable = false)
     private Post post;
 
+    // Bình luận cha — null nếu là bình luận gốc; có giá trị nếu là câu trả lời (cây phân cấp)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_parent_comment")
+    private Comment parentComment;
+
     @JsonIgnore
-    @ManyToMany
-    @JoinTable(name = "replies", joinColumns = @JoinColumn(name = "id_comment"), inverseJoinColumns = @JoinColumn(name = "id_reply"))
+    @OneToMany(mappedBy = "parentComment", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Comment> replies = new ArrayList<>();
+
+    // Bộ đếm denormalized tổng lượt cảm xúc của bình luận
+    @Column(name = "reaction_count", nullable = false)
+    private Integer reactionCount;
 
     @PrePersist
     public void prePersist() {
         if (id == null)
             id = UUID.randomUUID().toString();
         createTime = LocalDateTime.now();
+        if (reactionCount == null)
+            reactionCount = 0;
     }
 }

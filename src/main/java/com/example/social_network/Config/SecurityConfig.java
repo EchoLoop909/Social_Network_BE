@@ -1,26 +1,27 @@
 package com.example.social_network.Config;
 
-import com.example.social_network.Payload.Util.PathResources;
 import io.swagger.v3.oas.annotations.OpenAPIDefinition;
 import io.swagger.v3.oas.annotations.enums.SecuritySchemeType;
 import io.swagger.v3.oas.annotations.info.Info;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.security.SecurityScheme;
-import org.springdoc.core.SpringDocUtils;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
-
-// --- 1. QUAN TRỌNG: Phải import đúng cái Jwt này ---
-import org.springframework.security.oauth2.jwt.Jwt;
-// --------------------------------------------------
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.List;
 
 @Configuration
+@EnableWebSecurity
 @EnableMethodSecurity
 @OpenAPIDefinition(
         info = @Info(title = "Social Network API", version = "v1"),
@@ -34,45 +35,51 @@ import java.util.List;
 )
 public class SecurityConfig {
 
-    static {
-        // --- 2. Sửa lại dòng này dùng Jwt (của security) chứ không phải Properties ---
-        SpringDocUtils.getConfig().addRequestWrapperToIgnore(Jwt.class);
-    }
+    @Value("${idp.client-id}")
+    private String clientId;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
-                .cors(cors -> cors.configurationSource(request -> {
-                    CorsConfiguration config = new CorsConfiguration();
-                    config.setAllowedOrigins(List.of("http://localhost:1234", "http://localhost:3000","http://localhost:3001","http://localhost:3002", "http://localhost:8080"));
-                    config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-                    config.setAllowedHeaders(List.of("*"));
-                    return config;
-                }))
-                .authorizeRequests(auth -> auth
-                        // 1. Các API Public (Không yêu cầu token)
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                // Resource Server: stateless, không dùng session
+                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth
+                        // API công khai (không cần token)
                         .antMatchers(
-                                "/auth/**",       // Các API liên quan đến xác thực (đăng nhập, đăng ký,...)
-                                "/swagger-ui/**", // Giao diện Swagger
-                                "/v3/api-docs/**",// Tài liệu API
+                                "/auth/login",
+                                "/auth/public/**",
+                                "/swagger-ui/**",
                                 "/swagger-ui.html",
-                                "/images/**"      // Nơi chứa ảnh public
+                                "/v3/api-docs/**",
+                                "/images/**"
                         ).permitAll()
-
-                        // 2. Các API Private (Bắt buộc phải có token hợp lệ)
-                        .antMatchers(
-                                "/like/**",
-                                "/comment/**",
-                                "/images/**",
-                                "/message/**"
-                                // Thêm các endpoint khác bạn muốn private vào đây
-                        ).authenticated()
-
-                        // 3. Tất cả các request khác đều cần authentication
+                        // Xem bài viết công khai
+                        .antMatchers(HttpMethod.GET, "/post/**").permitAll()
+                        // Còn lại bắt buộc phải có Bearer Token hợp lệ
                         .anyRequest().authenticated()
-                );
+                )
+                // Đóng vai trò Resource Server, tự verify JWT bằng JWKS của Keycloak
+                .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt ->
+                        jwt.jwtAuthenticationConverter(new CustomJwtAuthenticationConverter(clientId))
+                ));
 
         return http.build();
+    }
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration config = new CorsConfiguration();
+        config.setAllowedOrigins(List.of(
+                "http://localhost:3000", "http://localhost:3001", "http://localhost:3002",
+                "http://localhost:1234", "http://localhost:8080"
+        ));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        config.setAllowedHeaders(List.of("*"));
+        config.setAllowCredentials(true);
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", config);
+        return source;
     }
 }

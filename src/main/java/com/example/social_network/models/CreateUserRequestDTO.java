@@ -11,8 +11,6 @@ public class CreateUserRequestDTO {
     private String surname;
     private String description;
     private String photo;
-    private String status;
     private String firstname;
     private String lastname;
-    private String keycloakId;
 }
