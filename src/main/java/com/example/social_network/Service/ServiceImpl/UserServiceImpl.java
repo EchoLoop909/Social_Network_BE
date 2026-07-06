@@ -1,13 +1,10 @@
 package com.example.social_network.Service.ServiceImpl;
 
 import com.example.social_network.ResHelper.ResponseHelper;
-import com.example.social_network.models.CreateUserRequestDTO;
 import com.example.social_network.Repository.UserRepository;
 import com.example.social_network.Service.UserService;
-import com.example.social_network.models.Dto.LoginRequest;
 import com.example.social_network.models.Dto.ResponseMess;
 import com.example.social_network.models.Entity.User;
-import com.example.social_network.models.Enum.UserStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,55 +25,6 @@ public class UserServiceImpl implements UserService {
 
     @Autowired
     private UserRepository userRepository;
-
-    @Override
-    public ResponseEntity<?> createUser(CreateUserRequestDTO req) {
-        try {
-            Optional<User> existingUser = userRepository.findByUsername(req.getUsername());
-            if (existingUser.isPresent()) {
-                return ResponseHelper.getResponseSearchMess(HttpStatus.OK, new ResponseMess(0, "User already exists "));
-            }
-
-            User newUser = new User();
-            newUser.setUsername(req.getUsername());
-            newUser.setEmail(req.getEmail());
-            newUser.setName(req.getName());
-            newUser.setSurname(req.getSurname());
-            newUser.setDescription(req.getDescription());
-            // Tài khoản mới luôn ở trạng thái chờ xác thực email (theo luồng đăng ký trong tài liệu)
-            newUser.setStatus(UserStatus.PENDING_ACTIVATION);
-            newUser.setFirstname(req.getFirstname());
-            newUser.setLastname(req.getLastname());
-
-            userRepository.save(newUser);
-
-            return ResponseHelper.getResponseSearchMess(HttpStatus.OK, new ResponseMess(0, "INSERT SUCCESSFULLY"));
-
-        } catch (Exception e) {
-            logger.error("Lỗi hệ thống: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("System Error: " + e.getMessage());
-        }
-    }
-
-    @Override
-    public ResponseEntity<?> login(LoginRequest request) {
-        try {
-            Optional<User> userOpt = userRepository.findByUsername(request.getUsername());
-
-            if (userOpt.isEmpty()) {
-                return ResponseEntity
-                        .status(HttpStatus.UNAUTHORIZED)
-                        .body(new ResponseMess(1, "INVALID USERNAME OR PASSWORD"));
-            }
-
-            return ResponseEntity.ok(userOpt.get());
-
-        } catch (Exception e) {
-            return ResponseEntity
-                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new ResponseMess(1, "SYSTEM ERROR"));
-        }
-    }
 
     @Override
     public Object getUser(String userId, int pageIdx, int pageSize) {
