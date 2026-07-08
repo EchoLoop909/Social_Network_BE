@@ -11,7 +11,6 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.List;
 import java.util.Map;
@@ -19,8 +18,7 @@ import java.util.Map;
 /**
  * Gọi Admin REST API của Keycloak phục vụ luồng đăng ký:
  *   ① lấy admin token (client_credentials)
- *   ② tạo user  -> trả về userId (sub)
- *   ③ gửi email xác thực (execute-actions-email VERIFY_EMAIL)
+ *   ② tạo user (emailVerified=true) -> trả về userId (sub)
  *   (rollback) xóa user khi lưu DB thất bại
  */
 @Service
@@ -42,12 +40,6 @@ public class KeycloakAdminService {
 
     @Value("${keycloak.admin.client-secret}")
     private String clientSecret;
-
-    @Value("${keycloak.verify-email.redirect-uri:}")
-    private String verifyRedirectUri;
-
-    @Value("${keycloak.verify-email.client-id:}")
-    private String verifyClientId;
 
     private String tokenUrl() {
         return serverUrl + "/realms/" + realm + "/protocol/openid-connect/token";
@@ -152,8 +144,7 @@ public class KeycloakAdminService {
                 "firstName", req.getFirstname(),
                 "lastName", req.getLastname(),
                 "enabled", true,
-                "emailVerified", false,
-                "requiredActions", List.of("VERIFY_EMAIL"),
+                "emailVerified", true,
                 "credentials", List.of(credential)
         );
 
@@ -167,29 +158,6 @@ public class KeycloakAdminService {
         String userId = location.substring(location.lastIndexOf('/') + 1);
         logger.info("Keycloak đã tạo user, sub = {}", userId);
         return userId;
-    }
-
-    /** ③ Yêu cầu Keycloak gửi email chứa link xác thực (VERIFY_EMAIL). */
-    public void sendVerifyEmail(String userId, String adminToken) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.setBearerAuth(adminToken);
-
-        UriComponentsBuilder uri = UriComponentsBuilder
-                .fromHttpUrl(usersUrl() + "/" + userId + "/execute-actions-email");
-        if (StringUtils.hasText(verifyClientId)) {
-            uri.queryParam("client_id", verifyClientId);
-        }
-        if (StringUtils.hasText(verifyRedirectUri)) {
-            uri.queryParam("redirect_uri", verifyRedirectUri);
-        }
-
-        restTemplate.exchange(
-                uri.toUriString(),
-                HttpMethod.PUT,
-                new HttpEntity<>(List.of("VERIFY_EMAIL"), headers),
-                Void.class);
-        logger.info("Đã yêu cầu Keycloak gửi mail xác thực cho user {}", userId);
     }
 
     /** Rollback: xóa user vừa tạo ở Keycloak khi bước lưu DB thất bại. */

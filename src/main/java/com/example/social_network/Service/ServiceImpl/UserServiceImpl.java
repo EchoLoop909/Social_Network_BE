@@ -99,12 +99,11 @@ public class UserServiceImpl implements UserService {
     }
 
     /**
-     * Luồng đăng ký (Sơ đồ hoạt động đăng ký trong tài liệu):
+     * Luồng đăng ký (ĐÃ BỎ xác thực email — tài khoản ACTIVE ngay):
      *  B2. Kiểm tra trùng email/username trong DB
      *  B3. Lấy admin token Keycloak
-     *  B4. Tạo user trên Keycloak (lấy sub)
-     *  B5. Yêu cầu Keycloak gửi mail xác thực
-     *  B6. Lưu bảng users với id = sub, status = PENDING_ACTIVATION (rollback Keycloak nếu lỗi)
+     *  B4. Tạo user trên Keycloak (emailVerified=true, lấy sub)
+     *  B5. Lưu bảng users với id = sub, status = ACTIVE (rollback Keycloak nếu lỗi)
      */
     @Override
     public ResponseEntity<?> register(RegisterRequest req) {
@@ -147,10 +146,7 @@ public class UserServiceImpl implements UserService {
         }
 
         try {
-            // B5 - gửi mail xác thực
-            keycloakAdminService.sendVerifyEmail(userId, adminToken);
-
-            // B6 - lưu DB
+            // B5 - lưu DB (không xác thực email: tài khoản ACTIVE ngay)
             User user = new User();
             user.setId(userId); // id_user = sub của Keycloak
             user.setUsername(req.getUsername());
@@ -159,15 +155,16 @@ public class UserServiceImpl implements UserService {
             user.setFirstname(req.getFirstname());
             user.setLastname(req.getLastname());
             user.setSurname(req.getSurname());
-            user.setStatus(UserStatus.PENDING_ACTIVATION);
+            user.setStatus(UserStatus.ACTIVE);
+            user.setIsChecked(true);
             userRepository.save(user);
 
             logger.info("Đăng ký thành công user {} (sub={})", req.getUsername(), userId);
 
             Map<String, Object> data = new HashMap<>();
             data.put("userId", userId);
-            data.put("status", UserStatus.PENDING_ACTIVATION.name());
-            data.put("message", "Đăng ký thành công. Vui lòng kiểm tra email để kích hoạt tài khoản.");
+            data.put("status", UserStatus.ACTIVE.name());
+            data.put("message", "Đăng ký thành công. Bạn có thể đăng nhập ngay.");
             return ResponseHelper.buildResponse(data, HttpStatus.CREATED);
         } catch (Exception e) {
             // rollback: xóa user vừa tạo trên Keycloak để tránh "user mồ côi"
