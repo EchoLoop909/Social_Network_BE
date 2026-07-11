@@ -9,6 +9,8 @@ import com.example.social_network.models.Dto.Posts.PostUpdateDto;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -16,7 +18,7 @@ import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
 
 @RestController
-@RequestMapping(PathResources.IMAGES)
+@RequestMapping(PathResources.Post)
 public class PostController {
 
     @Autowired
@@ -25,7 +27,7 @@ public class PostController {
     @Autowired
     private PostService postService;
 
-    @PostMapping(value = "/upload",consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping(value = PathResources.UPLOAD, consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<String> uploadImage(@RequestParam("file") MultipartFile file) {
         try {
             String imageUrl = cloudinaryService.uploadImage(file);
@@ -36,32 +38,33 @@ public class PostController {
     }
 
     @GetMapping(PathResources.Post)
-    public Object getPost(@RequestParam (required = false) String id,
-                          @RequestParam (required = false) String userId,
-                          @RequestParam (required = false) String postId,
+    public Object getPost(@RequestParam(required = false) String id,
+                          @RequestParam(required = false) String userId,
+                          @RequestParam(required = false) String postId,
                           @RequestParam(defaultValue = "1") int pageIdx,
-                          @RequestParam(defaultValue = "100") int pageSize){
-        return postService.getList(id,userId,postId,pageIdx -1,pageSize);
+                          @RequestParam(defaultValue = "100") int pageSize) {
+        return postService.getList(id, userId, postId, pageIdx - 1, pageSize);
     }
 
+    // API 2: tạo bài viết kèm media. id_user lấy từ JWT subject (KHÔNG nhận từ request).
     @PostMapping(PathResources.INSERT)
     public ResponseEntity<?> insert(@RequestBody PostInsertDto dto,
+                                    @AuthenticationPrincipal Jwt jwt,
                                     HttpServletRequest request) {
+        String userId = jwt.getSubject();
         String ip = request.getRemoteAddr();
-        return postService.insert(dto, ip);
+        return postService.insert(dto, userId, ip);
     }
 
     @PostMapping(PathResources.UPDATE)
     public ResponseEntity<?> update(@RequestBody PostUpdateDto dto,
                                     HttpServletRequest request) {
-        String ip = request.getRemoteAddr();
-        return postService.update(dto, ip);
+        return postService.update(dto, request.getRemoteAddr());
     }
 
     @PostMapping(PathResources.DELETE)
     public ResponseEntity<?> delete(@RequestBody DeleteDto dto,
                                     HttpServletRequest request) {
-        String ip = request.getRemoteAddr();
-        return postService.delete(dto, ip);
+        return postService.delete(dto, request.getRemoteAddr());
     }
 }

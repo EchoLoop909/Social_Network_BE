@@ -8,7 +8,11 @@ import org.springframework.http.ResponseEntity;
 public interface PostService {
     Object getList(String id,String userId, String postId , int pageIdx, int pageSize);
 
-    ResponseEntity<?> insert(PostInsertDto dto, String ip);
+    /**
+     * Tạo bài viết kèm media. userId lấy từ JWT subject (KHÔNG nhận từ request).
+     * Chạy trong @Transactional: rollback cả Post lẫn PostMedia nếu có lỗi.
+     */
+    ResponseEntity<?> insert(PostInsertDto dto, String userId, String ip);
 
     ResponseEntity<?> update(PostUpdateDto dto, String ip);
 
