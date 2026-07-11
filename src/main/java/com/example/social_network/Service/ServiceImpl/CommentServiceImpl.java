@@ -6,8 +6,10 @@ import com.example.social_network.Repository.PostRepository;
 import com.example.social_network.Repository.UserRepository;
 import com.example.social_network.ResHelper.ResponseHelper;
 import com.example.social_network.Service.CommentService;
+import com.example.social_network.models.Dto.CommentRootResponse;
 import com.example.social_network.models.Dto.CommentUpdateDto;
 import com.example.social_network.models.Dto.DeleteDto;
+import com.example.social_network.models.Dto.ResponseMess;
 import com.example.social_network.models.Entity.Comment;
 import com.example.social_network.models.Entity.Post;
 import com.example.social_network.models.Entity.User;
@@ -16,11 +18,12 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
-import org.springframework.data.domain.Pageable;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -36,140 +39,178 @@ public class CommentServiceImpl implements CommentService {
     @Autowired
     private PostRepository postRepository;
 
+    // ================= API 1: TẠO COMMENT (gốc hoặc reply) =================
     @Override
-    public ResponseEntity<?> addComment(CommentRequest dto, String ip) {
+    public ResponseEntity<?> addComment(CommentRequest dto, String userId, String ip) {
         try {
-            // 1. Validate ID đầu vào
-            if (dto.getUserId() == null || dto.getUserId().trim().isEmpty()) {
-                return ResponseEntity.badRequest().body("userId is required");
-            }
             if (dto.getPostId() == null || dto.getPostId().trim().isEmpty()) {
-                return ResponseEntity.badRequest().body("postId is required");
+                return ResponseHelper.getResponseSearchMess(HttpStatus.BAD_REQUEST, new ResponseMess(1, "postId is required"));
             }
-
-            // 2. Validate Text KHÔNG ĐƯỢC ĐỂ TRỐNG
             if (dto.getText() == null || dto.getText().trim().isEmpty()) {
-                return ResponseEntity.badRequest().body("Comment text cannot be empty");
+                return ResponseHelper.getResponseSearchMess(HttpStatus.BAD_REQUEST, new ResponseMess(1, "Comment text cannot be empty"));
             }
-
-            // Validate độ dài text (Entity khai báo length = 2000)
             if (dto.getText().length() > 2000) {
-                return ResponseEntity.badRequest().body("Comment text exceeds maximum length of 2000 characters");
+                return ResponseHelper.getResponseSearchMess(HttpStatus.BAD_REQUEST, new ResponseMess(1, "Comment text exceeds maximum length of 2000 characters"));
             }
 
-            // 3. Kiểm tra User có tồn tại không
-            User user = userRepository.findById(dto.getUserId()).orElse(null);
+            // Tác giả lấy từ JWT subject, KHÔNG nhận từ request
+            User user = userRepository.findById(userId).orElse(null);
             if (user == null) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body("User not found with id = " + dto.getUserId());
+                return ResponseHelper.getResponseSearchMess(HttpStatus.NOT_FOUND, new ResponseMess(1, "User not found with id = " + userId));
             }
 
-            // 4. Kiểm tra Post có tồn tại không
-            Post post = postRepository.findById(dto.getPostId()).orElse(null);
+            Post post = postRepository.findById(dto.getPostId().trim()).orElse(null);
             if (post == null) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body("Post not found with id = " + dto.getPostId());
+                return ResponseHelper.getResponseSearchMess(HttpStatus.NOT_FOUND, new ResponseMess(1, "Post not found with id = " + dto.getPostId()));
             }
 
-            // 5. Khởi tạo Comment và lưu vào DB
+            // Nếu là reply: validate comment cha
+            Comment parent = null;
+            if (dto.getParentCommentId() != null && !dto.getParentCommentId().trim().isEmpty()) {
+                parent = commentRepository.findById(dto.getParentCommentId().trim()).orElse(null);
+                if (parent == null) {
+                    return ResponseHelper.getResponseSearchMess(HttpStatus.NOT_FOUND, new ResponseMess(1, "Parent comment not found with id = " + dto.getParentCommentId()));
+                }
+                // Comment cha phải thuộc CÙNG bài viết (chặn reply nhầm sang bài khác)
+                if (!parent.getPost().getId().equals(post.getId())) {
+                    return ResponseHelper.getResponseSearchMess(HttpStatus.BAD_REQUEST, new ResponseMess(1, "Parent comment does not belong to the given post"));
+                }
+                // Comment cha phải là comment GỐC — không cho reply-của-reply (giới hạn 2 cấp)
+                if (parent.getParentComment() != null) {
+                    return ResponseHelper.getResponseSearchMess(HttpStatus.BAD_REQUEST, new ResponseMess(1, "Cannot reply to a reply — only one level of nesting is allowed"));
+                }
+            }
+
             Comment comment = new Comment();
             comment.setText(dto.getText().trim());
             comment.setUser(user);
             comment.setPost(post);
-
+            comment.setParentComment(parent); // null = comment gốc
             commentRepository.save(comment);
 
-            logger.info("User {} commented on Post {} successfully. IP: {}", user.getId(), post.getId(), ip);
-            return ResponseEntity.ok("ADD COMMENT SUCCESS");
+            logger.info("User {} added comment {} on Post {} (parent={}). IP: {}",
+                    userId, comment.getId(), post.getId(), parent != null ? parent.getId() : "null", ip);
+            return ResponseHelper.getResponseSearchMess(HttpStatus.OK, new ResponseMess(0, "ADD COMMENT SUCCESS"));
 
         } catch (Exception e) {
             logger.error("Error in addComment: {}", e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("SYSTEM ERROR: " + e.getMessage());
+            return ResponseHelper.getResponseSearchMess(HttpStatus.INTERNAL_SERVER_ERROR, new ResponseMess(1, "SYSTEM ERROR: " + e.getMessage()));
         }
     }
 
+    // ================= API 2: LIST COMMENT GỐC theo bài viết =================
     @Override
-    public Object getListByPost(String postId, int pageIdx, int pageSize) {
+    public Object getRootComments(String postId, int pageIdx, int pageSize) {
         try {
             if (postId == null || postId.trim().isEmpty()) {
-                return ResponseEntity.badRequest().body("postId is required");
+                return ResponseHelper.getResponseSearchMess(HttpStatus.BAD_REQUEST, new ResponseMess(1, "postId is required"));
             }
 
             Pageable paging = PageRequest.of(pageIdx, pageSize);
-            Page<Comment> commentPage = commentRepository.findByPost_IdOrderByCreateTimeDesc(postId, paging);
-            List<Comment> results = commentPage.getContent();
+            Page<Comment> page = commentRepository.findByPost_IdAndParentCommentIsNullOrderByCreateTimeDesc(postId.trim(), paging);
 
-            logger.info("Get list comment for Post {} success. Page: {}, Size: {}", postId, pageIdx, pageSize);
+            // Đếm replyCount cho từng comment gốc để FE hiển thị "Xem N phản hồi"
+            List<CommentRootResponse> results = new ArrayList<>();
+            for (Comment c : page.getContent()) {
+                long replyCount = commentRepository.countByParentComment_Id(c.getId());
+                results.add(new CommentRootResponse(c, replyCount));
+            }
 
-            // Dùng hàm ResponseHelper có sẵn trong project của bạn
-            return ResponseHelper.getResponses(results, commentPage.getTotalElements(), commentPage.getTotalPages(), HttpStatus.OK);
+            logger.info("Get root comments for Post {} success. Page: {}, Size: {}", postId, pageIdx, pageSize);
+            return ResponseHelper.getResponses(results, page.getTotalElements(), page.getTotalPages(), HttpStatus.OK);
 
         } catch (Exception e) {
-            logger.error("Error in getListByPost: {}", e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("SYSTEM ERROR: " + e.getMessage());
+            logger.error("Error in getRootComments: {}", e.getMessage());
+            return ResponseHelper.getResponseSearchMess(HttpStatus.INTERNAL_SERVER_ERROR, new ResponseMess(1, "SYSTEM ERROR: " + e.getMessage()));
         }
     }
 
+    // ================= API 3: LIST REPLY theo 1 comment gốc =================
     @Override
-    public ResponseEntity<?> updateComment(CommentUpdateDto dto, String ip) {
+    public Object getReplies(String parentCommentId, int pageIdx, int pageSize) {
+        try {
+            if (parentCommentId == null || parentCommentId.trim().isEmpty()) {
+                return ResponseHelper.getResponseSearchMess(HttpStatus.BAD_REQUEST, new ResponseMess(1, "parentCommentId is required"));
+            }
+
+            Pageable paging = PageRequest.of(pageIdx, pageSize);
+            Page<Comment> page = commentRepository.findByParentComment_IdOrderByCreateTimeAsc(parentCommentId.trim(), paging);
+            List<Comment> results = page.getContent();
+
+            logger.info("Get replies for Comment {} success. Page: {}, Size: {}", parentCommentId, pageIdx, pageSize);
+            return ResponseHelper.getResponses(results, page.getTotalElements(), page.getTotalPages(), HttpStatus.OK);
+
+        } catch (Exception e) {
+            logger.error("Error in getReplies: {}", e.getMessage());
+            return ResponseHelper.getResponseSearchMess(HttpStatus.INTERNAL_SERVER_ERROR, new ResponseMess(1, "SYSTEM ERROR: " + e.getMessage()));
+        }
+    }
+
+    // ================= API 4: UPDATE COMMENT =================
+    @Override
+    public ResponseEntity<?> updateComment(CommentUpdateDto dto, String userId, String ip) {
         try {
             if (dto.getCommentId() == null || dto.getCommentId().trim().isEmpty()) {
-                return ResponseEntity.badRequest().body("commentId is required");
+                return ResponseHelper.getResponseSearchMess(HttpStatus.BAD_REQUEST, new ResponseMess(1, "commentId is required"));
             }
             if (dto.getText() == null || dto.getText().trim().isEmpty()) {
-                return ResponseEntity.badRequest().body("Comment text cannot be empty");
+                return ResponseHelper.getResponseSearchMess(HttpStatus.BAD_REQUEST, new ResponseMess(1, "Comment text cannot be empty"));
+            }
+            if (dto.getText().length() > 2000) {
+                return ResponseHelper.getResponseSearchMess(HttpStatus.BAD_REQUEST, new ResponseMess(1, "Comment text exceeds maximum length of 2000 characters"));
             }
 
-            Comment comment = commentRepository.findById(dto.getCommentId()).orElse(null);
+            Comment comment = commentRepository.findById(dto.getCommentId().trim()).orElse(null);
             if (comment == null) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Comment not found");
+                return ResponseHelper.getResponseSearchMess(HttpStatus.NOT_FOUND, new ResponseMess(1, "Comment not found"));
             }
 
-            // (Tùy chọn) Kiểm tra quyền: Phải là người tạo comment mới được phép sửa
-            if (dto.getUserId() != null && !comment.getUser().getId().equals(dto.getUserId())) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                        .body("You don't have permission to update this comment");
+            // Chỉ người tạo comment mới được sửa (so với JWT subject)
+            if (!comment.getUser().getId().equals(userId)) {
+                return ResponseHelper.getResponseSearchMess(HttpStatus.FORBIDDEN, new ResponseMess(1, "You don't have permission to update this comment"));
             }
 
-            // Cập nhật nội dung
+            // KHÔNG cho đổi id_post / id_parent_comment sau khi tạo — chỉ cập nhật text
             comment.setText(dto.getText().trim());
             commentRepository.save(comment);
 
-            logger.info("Comment {} updated successfully. IP: {}", comment.getId(), ip);
-            return ResponseEntity.ok("UPDATE COMMENT SUCCESS");
+            logger.info("Comment {} updated by user {}. IP: {}", comment.getId(), userId, ip);
+            return ResponseHelper.getResponseSearchMess(HttpStatus.OK, new ResponseMess(0, "UPDATE COMMENT SUCCESS"));
 
         } catch (Exception e) {
             logger.error("Error in updateComment: {}", e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("UPDATE FAILED: " + e.getMessage());
+            return ResponseHelper.getResponseSearchMess(HttpStatus.INTERNAL_SERVER_ERROR, new ResponseMess(1, "UPDATE FAILED: " + e.getMessage()));
         }
     }
 
+    // ================= API 5: DELETE COMMENT =================
     @Override
-    public ResponseEntity<?> deleteComment(DeleteDto dto, String ip) {
+    public ResponseEntity<?> deleteComment(DeleteDto dto, String userId, String ip) {
         try {
             if (dto.getId() == null || dto.getId().trim().isEmpty()) {
-                return ResponseEntity.badRequest().body("commentId is required");
+                return ResponseHelper.getResponseSearchMess(HttpStatus.BAD_REQUEST, new ResponseMess(1, "commentId is required"));
             }
 
-            Comment comment = commentRepository.findById(dto.getId()).orElse(null);
+            Comment comment = commentRepository.findById(dto.getId().trim()).orElse(null);
             if (comment == null) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Comment not found");
+                return ResponseHelper.getResponseSearchMess(HttpStatus.NOT_FOUND, new ResponseMess(1, "Comment not found"));
             }
 
-            // Xóa comment
+            // Chỉ người tạo comment mới được xoá (TODO: bổ sung quyền admin sau nếu cần)
+            if (!comment.getUser().getId().equals(userId)) {
+                return ResponseHelper.getResponseSearchMess(HttpStatus.FORBIDDEN, new ResponseMess(1, "You don't have permission to delete this comment"));
+            }
+
+            // Xoá comment gốc sẽ tự cascade xoá toàn bộ reply con nhờ mapping
+            // @OneToMany(cascade = ALL, orphanRemoval = true) — KHÔNG cần tự lặp xoá.
             commentRepository.delete(comment);
 
-            logger.info("Comment {} deleted successfully. IP: {}", dto.getId(), ip);
-            return ResponseEntity.ok("DELETE COMMENT SUCCESS");
+            logger.info("Comment {} (and its replies if any) deleted by user {}. IP: {}", dto.getId(), userId, ip);
+            return ResponseHelper.getResponseSearchMess(HttpStatus.OK, new ResponseMess(0, "DELETE COMMENT SUCCESS"));
 
         } catch (Exception e) {
             logger.error("Error in deleteComment: {}", e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("DELETE FAILED: " + e.getMessage());
+            return ResponseHelper.getResponseSearchMess(HttpStatus.INTERNAL_SERVER_ERROR, new ResponseMess(1, "DELETE FAILED: " + e.getMessage()));
         }
     }
-
 }
