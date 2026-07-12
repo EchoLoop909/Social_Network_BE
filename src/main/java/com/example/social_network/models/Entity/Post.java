@@ -57,8 +57,9 @@ public class Post implements Serializable {
     @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Comment> comments = new ArrayList<>();
 
-    @JsonIgnore
+    // Trả kèm trong response để FE render ảnh/video (id_post ở PostMedia đã @JsonIgnore để tránh đệ quy)
     @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("displayOrder ASC")
     private List<PostMedia> mediaList = new ArrayList<>();
 
     @PrePersist

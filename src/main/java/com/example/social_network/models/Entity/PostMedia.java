@@ -1,6 +1,7 @@
 package com.example.social_network.models.Entity;
 
 import com.example.social_network.models.Enum.MediaType;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
 
@@ -21,6 +22,7 @@ public class PostMedia implements Serializable {
     @Column(name = "id_media", length = 36, nullable = false, updatable = false)
     private String id;
 
+    @JsonIgnore // tránh đệ quy Post -> mediaList -> post; media luôn được trả kèm trong Post
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_post", nullable = false)
     private Post post;
