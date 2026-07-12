@@ -1,5 +1,6 @@
 package com.example.social_network.Service.ServiceImpl;
 
+import com.example.social_network.Payload.Request.AcceptFriendRequestDto;
 import com.example.social_network.Payload.Request.FriendRequestDto;
 import com.example.social_network.Repository.FollowershipRepository;
 import com.example.social_network.Repository.UserRepository;
@@ -96,6 +97,54 @@ public class FollowershipServiceImpl implements FollowershipService {
 
         } catch (Exception e) {
             logger.error("Error in sendFriendRequest: {}", e.getMessage());
+            return ResponseHelper.getResponseSearchMess(HttpStatus.INTERNAL_SERVER_ERROR,
+                    new ResponseMess(1, "SYSTEM ERROR: " + e.getMessage()));
+        }
+    }
+
+    @Override
+    public ResponseEntity<?> acceptFriendRequest(AcceptFriendRequestDto dto, String userId, String ip) {
+        try {
+            // 1. Validate input
+            if (dto.getRequesterId() == null || dto.getRequesterId().trim().isEmpty()) {
+                return ResponseHelper.getResponseSearchMess(HttpStatus.BAD_REQUEST,
+                        new ResponseMess(1, "requesterId is required"));
+            }
+            String requesterId = dto.getRequesterId().trim();
+
+            // 2. Tìm record theo cặp (userFollower = B (requester), userChecked = A (người đăng nhập)).
+            //    Đặt userId (JWT) làm userChecked -> query chỉ khớp khi A ĐÚNG là người NHẬN,
+            //    nên B (người gửi) tự gọi accept sẽ không tìm thấy record (không thể tự duyệt).
+            Followership followership = followershipRepository
+                    .findByUserFollower_IdAndUserChecked_Id(requesterId, userId).orElse(null);
+            if (followership == null) {
+                return ResponseHelper.getResponseSearchMess(HttpStatus.NOT_FOUND,
+                        new ResponseMess(1, "Không tìm thấy lời mời kết bạn để chấp nhận"));
+            }
+
+            // 3. Kiểm tra trạng thái
+            if (followership.getStatus() == FollowStatus.ACCEPTED) {
+                return ResponseHelper.getResponseSearchMess(HttpStatus.BAD_REQUEST,
+                        new ResponseMess(1, "Hai người đã là bạn bè"));
+            }
+            if (followership.getStatus() != FollowStatus.PENDING) {
+                return ResponseHelper.getResponseSearchMess(HttpStatus.BAD_REQUEST,
+                        new ResponseMess(1, "Lời mời không ở trạng thái chờ duyệt"));
+            }
+
+            // 4. Duyệt: PENDING -> ACCEPTED, set acceptedAt + updateTime
+            LocalDateTime now = LocalDateTime.now();
+            followership.setStatus(FollowStatus.ACCEPTED);
+            followership.setAcceptedAt(now);
+            followership.setUpdateTime(now);
+            followershipRepository.save(followership);
+
+            logger.info("User {} accepted friend request from {}. IP: {}", userId, requesterId, ip);
+            return ResponseHelper.getResponseSearchMess(HttpStatus.OK,
+                    new ResponseMess(0, "ACCEPT FRIEND REQUEST SUCCESS"));
+
+        } catch (Exception e) {
+            logger.error("Error in acceptFriendRequest: {}", e.getMessage());
             return ResponseHelper.getResponseSearchMess(HttpStatus.INTERNAL_SERVER_ERROR,
                     new ResponseMess(1, "SYSTEM ERROR: " + e.getMessage()));
         }
