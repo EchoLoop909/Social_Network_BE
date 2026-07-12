@@ -117,7 +117,7 @@ public class UserServiceImpl implements UserService {
                     new ResponseMess(1, "Username đã tồn tại"));
         }
 
-        String userId = null;
+        String userId;
         String adminToken;
         try {
             // B3 - lấy admin token
@@ -167,7 +167,6 @@ public class UserServiceImpl implements UserService {
             data.put("message", "Đăng ký thành công. Bạn có thể đăng nhập ngay.");
             return ResponseHelper.buildResponse(data, HttpStatus.CREATED);
         } catch (Exception e) {
-            // rollback: xóa user vừa tạo trên Keycloak để tránh "user mồ côi"
             logger.error("Lưu DB thất bại, rollback user {} trên Keycloak. Lỗi: {}", userId, e.getMessage());
             keycloakAdminService.deleteUser(userId, adminToken);
             return ResponseHelper.buildFalseResponse(HttpStatus.INTERNAL_SERVER_ERROR,
