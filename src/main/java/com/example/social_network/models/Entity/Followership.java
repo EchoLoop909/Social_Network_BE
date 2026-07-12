@@ -39,6 +39,14 @@ public class Followership implements Serializable {
     @Column(name = "create_time", nullable = false)
     private LocalDateTime createTime;
 
+    // Thời điểm cập nhật gần nhất (đổi trạng thái duyệt/từ chối) — null nếu chưa từng đổi
+    @Column(name = "update_time")
+    private LocalDateTime updateTime;
+
+    // Thời điểm lời mời được chấp thuận (chuyển sang ACCEPTED) — null nếu chưa được duyệt
+    @Column(name = "accepted_at")
+    private LocalDateTime acceptedAt;
+
     @PrePersist
     public void prePersist() {
         if (id == null) id = UUID.randomUUID().toString();
