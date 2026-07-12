@@ -4,7 +4,7 @@ import lombok.Data;
 
 @Data
 public class PostUpdateDto {
-    private String id;
+    private String id;     // id_post
     private String text;
     private String photo;
     private Boolean isPinned;

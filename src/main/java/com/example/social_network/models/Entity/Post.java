@@ -49,6 +49,24 @@ public class Post implements Serializable {
     @Column(name = "comment_count", nullable = false)
     private Integer commentCount;
 
+    // Bài được share TRỰC TIẾP nếu bài này là 1 lượt share — null nếu là bài gốc, hoặc
+    // share mà bài được share đã bị xoá (DB tự set NULL nhờ ON DELETE SET NULL). Trả kèm
+    // trong response (không @JsonIgnore) để FE render "card lồng bên trong". Có thể tạo
+    // chuỗi nhiều tầng (share của share) — FE tự giới hạn độ sâu hiển thị.
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_original_post")
+    private Post originalPost;
+
+    // Bộ đếm denormalized số lần bài NÀY bị share
+    @Column(name = "share_count", nullable = false)
+    private Integer shareCount;
+
+    // true nếu bài này là 1 lượt share — set NGAY LÚC TẠO và không bao giờ đổi lại,
+    // kể cả khi id_original_post về NULL do bài gốc bị xoá (phân biệt "bài gốc thật"
+    // với "bài share mà gốc đã mất")
+    @Column(name = "is_shared", nullable = false)
+    private Boolean isShared;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_user", nullable = false)
     private User user;
@@ -78,5 +96,9 @@ public class Post implements Serializable {
             reactionCount = 0;
         if (commentCount == null)
             commentCount = 0;
+        if (shareCount == null)
+            shareCount = 0;
+        if (isShared == null)
+            isShared = false;
     }
 }

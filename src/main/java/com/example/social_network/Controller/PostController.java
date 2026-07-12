@@ -6,6 +6,7 @@ import com.example.social_network.Payload.Util.SecurityUtils;
 import com.example.social_network.Service.PostService;
 import com.example.social_network.models.Dto.DeleteDto;
 import com.example.social_network.models.Dto.Posts.PostInsertDto;
+import com.example.social_network.models.Dto.Posts.PostShareDto;
 import com.example.social_network.models.Dto.Posts.PostUpdateDto;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -51,6 +52,14 @@ public class PostController {
                                     HttpServletRequest request) {
         String userId = SecurityUtils.getCurrentUserId();
         return postService.insert(dto, userId, request.getRemoteAddr());
+    }
+
+    // Share (repost nội bộ) bài viết. id_user (người share) lấy từ token (KHÔNG nhận từ request).
+    @PostMapping(PathResources.SHARE)
+    public ResponseEntity<?> share(@RequestBody PostShareDto dto,
+                                   HttpServletRequest request) {
+        String userId = SecurityUtils.getCurrentUserId();
+        return postService.share(dto, userId, request.getRemoteAddr());
     }
 
     @PostMapping(PathResources.UPDATE)
