@@ -35,9 +35,8 @@ public class SecurityConfig {
     }
 
     /**
-     * Public: /auth/register, /auth/activate/** (webhook), swagger.
+     * Public: /auth/register, /auth/login, /auth/logout, swagger.
      * Còn lại yêu cầu JWT hợp lệ do Keycloak cấp (OAuth2 resource server).
-     * Endpoint /auth/me đọc claim trong JWT để sync trạng thái ACTIVE khi đăng nhập.
      */
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -49,9 +48,7 @@ public class SecurityConfig {
                         .antMatchers(HttpMethod.POST,
                                 PathResources.Auth + PathResources.REGISTER,
                                 PathResources.Auth + PathResources.LOGIN,
-                                PathResources.Auth + PathResources.REFRESH,
                                 PathResources.Auth + PathResources.LOGOUT).permitAll()
-                        .antMatchers(PathResources.Auth + PathResources.ACTIVATE + "/**").permitAll()
                         .antMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**",
                                 "/swagger-resources/**", "/webjars/**").permitAll()
                         .anyRequest().authenticated())

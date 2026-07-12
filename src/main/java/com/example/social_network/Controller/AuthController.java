@@ -9,8 +9,6 @@ import com.example.social_network.Service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
@@ -47,23 +45,6 @@ public class AuthController {
         return (ResponseEntity<?>) userService.register(request);
     }
 
-    /** Kích hoạt tài khoản sau khi xác thực email (webhook Keycloak hoặc gọi thủ công). */
-    @PostMapping(PathResources.ACTIVATE + "/{userId}")
-    public ResponseEntity<?> activate(@PathVariable String userId) {
-        return (ResponseEntity<?>) userService.activate(userId);
-    }
-
-    /**
-     * Thông tin user hiện tại (yêu cầu JWT). Frontend gọi ngay sau khi đăng nhập.
-     * Đọc claim email_verified trong token để sync trạng thái ACTIVE và chặn tài khoản SUSPENDED.
-     */
-    @GetMapping(PathResources.ME)
-    public ResponseEntity<?> me(@AuthenticationPrincipal Jwt jwt) {
-        String userId = jwt.getSubject(); // = sub = id_user
-        Boolean emailVerified = jwt.getClaimAsBoolean("email_verified");
-        return (ResponseEntity<?>) userService.getCurrentUser(userId, Boolean.TRUE.equals(emailVerified));
-    }
-
     /** Đăng nhập: FE gọi vào đây, backend proxy tới Keycloak. */
     @PostMapping(PathResources.LOGIN)
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request,
@@ -72,16 +53,6 @@ public class AuthController {
             return ResponseHelper.getErrorResponse(bindingResult, HttpStatus.BAD_REQUEST);
         }
         return (ResponseEntity<?>) userService.login(request);
-    }
-
-    /** Làm mới access_token bằng refresh_token. */
-    @PostMapping(PathResources.REFRESH)
-    public ResponseEntity<?> refresh(@Valid @RequestBody RefreshTokenRequest request,
-                                     BindingResult bindingResult) {
-        if (bindingResult.hasErrors()) {
-            return ResponseHelper.getErrorResponse(bindingResult, HttpStatus.BAD_REQUEST);
-        }
-        return (ResponseEntity<?>) userService.refresh(request.getRefreshToken());
     }
 
     /** Đăng xuất: thu hồi phiên tại Keycloak. */
