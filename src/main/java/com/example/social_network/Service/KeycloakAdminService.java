@@ -72,23 +72,6 @@ public class KeycloakAdminService {
         return (Map<String, Object>) resp.getBody();
     }
 
-    /** Cấp access_token mới từ refresh_token. */
-    @SuppressWarnings({"rawtypes", "unchecked"})
-    public Map<String, Object> refreshToken(String refreshToken) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-
-        MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
-        form.add("grant_type", "refresh_token");
-        form.add("client_id", clientId);
-        form.add("client_secret", clientSecret);
-        form.add("refresh_token", refreshToken);
-
-        ResponseEntity<Map> resp = restTemplate.postForEntity(
-                tokenUrl(), new HttpEntity<>(form, headers), Map.class);
-        return (Map<String, Object>) resp.getBody();
-    }
-
     /** Đăng xuất: thu hồi phiên/refresh_token tại Keycloak. */
     public void logout(String refreshToken) {
         HttpHeaders headers = new HttpHeaders();

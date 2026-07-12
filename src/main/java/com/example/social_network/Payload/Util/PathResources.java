@@ -34,9 +34,6 @@ public class PathResources {
     public static final String UNFRIEND ="/unfriend";
     public static final String Auth ="/auth";
     public static final String REGISTER ="/register";
-    public static final String ACTIVATE ="/activate";
-    public static final String ME ="/me";
     public static final String LOGIN ="/login";
-    public static final String REFRESH ="/refresh";
     public static final String LOGOUT ="/logout";
 }

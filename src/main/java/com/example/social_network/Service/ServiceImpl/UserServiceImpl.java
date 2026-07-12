@@ -175,61 +175,6 @@ public class UserServiceImpl implements UserService {
         }
     }
 
-    /** Kích hoạt tài khoản sau khi email đã xác thực: PENDING_ACTIVATION -> ACTIVE. */
-    @Override
-    @Transactional
-    public ResponseEntity<?> activate(String userId) {
-        Optional<User> userOpt = userRepository.findById(userId);
-        if (userOpt.isEmpty()) {
-            return ResponseHelper.buildFalseResponse(HttpStatus.NOT_FOUND,
-                    new ResponseMess(1, "Không tìm thấy người dùng"));
-        }
-        User user = userOpt.get();
-        if (user.getStatus() == UserStatus.SUSPENDED) {
-            return ResponseHelper.buildFalseResponse(HttpStatus.FORBIDDEN,
-                    new ResponseMess(1, "Tài khoản đang bị khóa"));
-        }
-        user.setStatus(UserStatus.ACTIVE);
-        user.setIsChecked(true);
-        userRepository.save(user);
-        logger.info("Kích hoạt tài khoản {} -> ACTIVE", userId);
-        return ResponseHelper.getResponseSearchMess(HttpStatus.OK,
-                new ResponseMess(0, "Kích hoạt tài khoản thành công"));
-    }
-
-    /**
-     * Sync-on-login (cách a):
-     *  - SUSPENDED  -> chặn 403
-     *  - email_verified == true && PENDING_ACTIVATION -> set ACTIVE
-     *  - trả thông tin user hiện tại
-     */
-    @Override
-    @Transactional
-    public ResponseEntity<?> getCurrentUser(String userId, boolean emailVerified) {
-        Optional<User> userOpt = userRepository.findById(userId);
-        if (userOpt.isEmpty()) {
-            return ResponseHelper.buildFalseResponse(HttpStatus.NOT_FOUND,
-                    new ResponseMess(1, "Tài khoản chưa được đăng ký trong hệ thống"));
-        }
-        User user = userOpt.get();
-
-        // chặn tài khoản bị admin khóa
-        if (user.getStatus() == UserStatus.SUSPENDED) {
-            return ResponseHelper.buildFalseResponse(HttpStatus.FORBIDDEN,
-                    new ResponseMess(1, "Tài khoản đang bị khóa"));
-        }
-
-        // sync: email đã xác thực + đang chờ kích hoạt -> ACTIVE
-        if (emailVerified && user.getStatus() == UserStatus.PENDING_ACTIVATION) {
-            user.setStatus(UserStatus.ACTIVE);
-            user.setIsChecked(true);
-            userRepository.save(user);
-            logger.info("Sync-on-login: kích hoạt {} -> ACTIVE", userId);
-        }
-
-        return ResponseHelper.buildResponse(user, HttpStatus.OK);
-    }
-
     /**
      * Đăng nhập (Cách 2 - backend proxy):
      *  - gọi Keycloak Direct Access Grant lấy token
@@ -286,21 +231,6 @@ public class UserServiceImpl implements UserService {
         data.put("token_type", token.get("token_type"));
         data.put("user", user);
         return ResponseHelper.buildResponse(data, HttpStatus.OK);
-    }
-
-    @Override
-    public ResponseEntity<?> refresh(String refreshToken) {
-        try {
-            Map<String, Object> token = keycloakAdminService.refreshToken(refreshToken);
-            return ResponseHelper.buildResponse(token, HttpStatus.OK);
-        } catch (HttpStatusCodeException e) {
-            return ResponseHelper.buildFalseResponse(HttpStatus.UNAUTHORIZED,
-                    new ResponseMess(1, "Refresh token không hợp lệ hoặc đã hết hạn"));
-        } catch (Exception e) {
-            logger.error("Lỗi refresh token: {}", e.getMessage());
-            return ResponseHelper.buildFalseResponse(HttpStatus.INTERNAL_SERVER_ERROR,
-                    new ResponseMess(1, "Không kết nối được máy chủ xác thực"));
-        }
     }
 
     @Override
