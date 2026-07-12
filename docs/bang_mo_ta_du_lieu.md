@@ -56,7 +56,12 @@ Hệ thống gồm **17 bảng**, ánh xạ 1-1 từ các lớp Entity trong mã
 | 7 | is_pinned | BIT(1) | | Ghim bài lên đầu hồ sơ |
 | 8 | reaction_count | INT | NN | Bộ đếm cảm xúc (denormalized) |
 | 9 | comment_count | INT | NN | Bộ đếm bình luận (denormalized) |
-| 10 | id_user | VARCHAR(36) | FK→users, NN | Tác giả bài viết |
+| 10 | id_original_post | VARCHAR(36) | FK→posts | Bài gốc được share trực tiếp; null nếu là bài gốc hoặc share mà gốc đã bị xóa. **ON DELETE SET NULL** |
+| 11 | share_count | INT | NN | Bộ đếm số lần bài này bị share (denormalized) |
+| 12 | is_shared | BIT(1) | NN | true = bài này là 1 lượt share; set khi tạo và không đổi lại kể cả khi id_original_post về null |
+| 13 | id_user | VARCHAR(36) | FK→users, NN | Tác giả bài viết |
+
+> **FK tự tham chiếu** `id_original_post → posts.id_post` với **ON DELETE SET NULL**: khi bài gốc bị xóa, các bài share trỏ tới nó tự động về null (không xóa dây chuyền), còn `is_shared` giữ nguyên true để phân biệt "bài gốc thật" (is_shared=false) với "bài share mà gốc đã mất" (is_shared=true, id_original_post=null).
 
 ### Bảng 4. `post_media` — Media của bài viết
 
