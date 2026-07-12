@@ -37,7 +37,7 @@ public class PostController {
         }
     }
 
-    @GetMapping(PathResources.Post)
+    @GetMapping(PathResources.GetlistPost)
     public Object getPost(@RequestParam(required = false) String id,
                           @RequestParam(required = false) String userId,
                           @RequestParam(required = false) String postId,

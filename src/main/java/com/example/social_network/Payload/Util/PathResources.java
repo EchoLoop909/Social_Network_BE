@@ -2,7 +2,7 @@ package com.example.social_network.Payload.Util;
 
 public class PathResources {
     public static final String Post ="/post";
-    public static final String IMAGES ="/images";
+    public static final String GetlistPost ="/GetlistPost";
     public static final String POST_MEDIA ="/post-media";
     public static final String UPLOAD ="/upload";
     public static final String INSERT ="/insert";
