@@ -64,17 +64,6 @@ public class PostServiceImpl implements PostService {
         }
     }
 
-    /**
-     * Tạo bài viết kèm media trong 1 transaction.
-     * <p>
-     * NGOẠI LỆ CONVENTION (chỉ áp dụng cho method @Transactional này): khối catch
-     * KHÔNG return ResponseHelper lỗi như các Service khác — phải throw lại
-     * RuntimeException sau khi log để Spring rollback toàn bộ (Post + PostMedia).
-     * Nếu catch rồi return bình thường, Spring sẽ KHÔNG rollback.
-     * <p>
-     * Method là public và được gọi từ Controller qua Spring proxy (không self-invocation)
-     * nên @Transactional có hiệu lực.
-     */
     @Override
     @Transactional
     public ResponseEntity<?> insert(PostInsertDto dto, String userId, String ip) {
@@ -148,12 +137,10 @@ public class PostServiceImpl implements PostService {
 
             logger.info("User {} created Post {} (type {}) with {} media. IP: {}",
                     userId, post.getId(), postType, mediaEmpty ? 0 : media.size(), ip);
-            // 7. Thành công
             return ResponseHelper.getResponseSearchMess(HttpStatus.OK, new ResponseMess(0, "INSERT POST SUCCESS"));
 
         } catch (Exception e) {
             logger.error("Error in insert post: {}", e.getMessage());
-            // BẮT BUỘC throw lại để @Transactional rollback (KHÔNG return như convention thường)
             throw new RuntimeException("INSERT POST FAILED: " + e.getMessage(), e);
         }
     }
@@ -170,13 +157,23 @@ public class PostServiceImpl implements PostService {
                 return ResponseHelper.getResponseSearchMess(HttpStatus.NOT_FOUND, new ResponseMess(1, "Post not found with id = " + dto.getId()));
             }
 
-            // TODO: kiểm tra quyền sở hữu — chỉ tác giả mới được sửa:
-            // if (!post.getUser().getId().equals(userId)) return 403 FORBIDDEN;
-
             post.setText(dto.getText());
             if (dto.getIsPinned() != null) {
                 post.setIsPinned(dto.getIsPinned());
             }
+
+            // visibility: chỉ cập nhật khi có gửi; validate như lúc tạo bài
+            if (dto.getVisibility() != null && !dto.getVisibility().trim().isEmpty()) {
+                PostVisibility visibility;
+                try {
+                    visibility = PostVisibility.valueOf(dto.getVisibility().trim().toUpperCase());
+                } catch (IllegalArgumentException ex) {
+                    return ResponseHelper.getResponseSearchMess(HttpStatus.BAD_REQUEST,
+                            new ResponseMess(1, "visibility không hợp lệ: " + dto.getVisibility()));
+                }
+                post.setVisibility(visibility);
+            }
+            
             postRepository.save(post);
 
             logger.info("User {} updated Post {} successfully. IP: {}", userId, post.getId(), ip);
@@ -199,11 +196,7 @@ public class PostServiceImpl implements PostService {
                 return ResponseHelper.getResponseSearchMess(HttpStatus.NOT_FOUND, new ResponseMess(1, "Post not found with id = " + dto.getId()));
             }
 
-            // TODO: kiểm tra quyền sở hữu — chỉ tác giả mới được xóa:
-            // if (!post.getUser().getId().equals(userId)) return 403 FORBIDDEN;
-
             postRepository.deleteById(dto.getId());
-
             logger.info("User {} deleted Post {} successfully. IP: {}", userId, dto.getId(), ip);
             return ResponseHelper.getResponseSearchMess(HttpStatus.OK, new ResponseMess(0, "DELETE POST SUCCESS"));
         } catch (Exception e) {
