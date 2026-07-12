@@ -7,6 +7,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.bind.annotation.RequestPart;
 
 @RestController
 @RequestMapping(PathResources.POST_MEDIA)
@@ -17,7 +18,7 @@ public class PostMediaController {
 
     // API 1: upload ảnh/video lên Cloudinary, KHÔNG lưu DB, trả về list { url, type, ... , order }
     @PostMapping(value = PathResources.UPLOAD, consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<?> upload(@RequestParam("files") MultipartFile[] files) {
+    public ResponseEntity<?> upload(@RequestPart("files") MultipartFile[] files) {
         return postMediaService.upload(files);
     }
 }
