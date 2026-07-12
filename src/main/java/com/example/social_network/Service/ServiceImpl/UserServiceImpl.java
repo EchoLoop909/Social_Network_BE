@@ -243,7 +243,6 @@ public class UserServiceImpl implements UserService {
                 new ResponseMess(0, "Đăng xuất thành công"));
     }
 
-
     @SuppressWarnings("unchecked")
     private Map<String, Object> decodeJwtPayload(String jwt) {
         try {
