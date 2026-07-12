@@ -6,6 +6,7 @@ public class PathResources {
     public static final String POST_MEDIA ="/post-media";
     public static final String UPLOAD ="/upload";
     public static final String INSERT ="/insert";
+    public static final String SHARE ="/share";
     public static final String GetUser ="/getuser";
     public static final String MESSAGE ="/message";
     public static final String DELETE ="/delete";

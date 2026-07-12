@@ -8,4 +8,5 @@ public class PostUpdateDto {
     private String text;
     private String photo;
     private Boolean isPinned;
+    private String visibility; // PUBLIC / FOLLOWERS / PRIVATE — null/rỗng = giữ nguyên
 }
