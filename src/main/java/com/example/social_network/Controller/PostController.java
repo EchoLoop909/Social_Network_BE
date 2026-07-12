@@ -2,6 +2,7 @@ package com.example.social_network.Controller;
 
 import com.example.social_network.Config.Cloudinary.CloudinaryService;
 import com.example.social_network.Payload.Util.PathResources;
+import com.example.social_network.Payload.Util.SecurityUtils;
 import com.example.social_network.Service.PostService;
 import com.example.social_network.models.Dto.DeleteDto;
 import com.example.social_network.models.Dto.Posts.PostInsertDto;
@@ -9,8 +10,6 @@ import com.example.social_network.models.Dto.Posts.PostUpdateDto;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -46,25 +45,25 @@ public class PostController {
         return postService.getList(id, userId, postId, pageIdx - 1, pageSize);
     }
 
-    // API 2: tạo bài viết kèm media. id_user lấy từ JWT subject (KHÔNG nhận từ request).
+    // API 2: tạo bài viết kèm media. id_user lấy từ token (KHÔNG nhận từ request).
     @PostMapping(PathResources.INSERT)
     public ResponseEntity<?> insert(@RequestBody PostInsertDto dto,
-                                    @AuthenticationPrincipal Jwt jwt,
                                     HttpServletRequest request) {
-        String userId = jwt.getSubject();
-        String ip = request.getRemoteAddr();
-        return postService.insert(dto, userId, ip);
+        String userId = SecurityUtils.getCurrentUserId();
+        return postService.insert(dto, userId, request.getRemoteAddr());
     }
 
     @PostMapping(PathResources.UPDATE)
     public ResponseEntity<?> update(@RequestBody PostUpdateDto dto,
                                     HttpServletRequest request) {
-        return postService.update(dto, request.getRemoteAddr());
+        String userId = SecurityUtils.getCurrentUserId();
+        return postService.update(dto, userId, request.getRemoteAddr());
     }
 
     @PostMapping(PathResources.DELETE)
     public ResponseEntity<?> delete(@RequestBody DeleteDto dto,
                                     HttpServletRequest request) {
-        return postService.delete(dto, request.getRemoteAddr());
+        String userId = SecurityUtils.getCurrentUserId();
+        return postService.delete(dto, userId, request.getRemoteAddr());
     }
 }

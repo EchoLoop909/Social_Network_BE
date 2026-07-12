@@ -159,7 +159,7 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
-    public ResponseEntity<?> update(PostUpdateDto dto, String ip) {
+    public ResponseEntity<?> update(PostUpdateDto dto, String userId, String ip) {
         try {
             if (dto.getId() == null || dto.getId().trim().isEmpty()) {
                 return ResponseHelper.getResponseSearchMess(HttpStatus.BAD_REQUEST, new ResponseMess(1, "postId is required"));
@@ -170,13 +170,16 @@ public class PostServiceImpl implements PostService {
                 return ResponseHelper.getResponseSearchMess(HttpStatus.NOT_FOUND, new ResponseMess(1, "Post not found with id = " + dto.getId()));
             }
 
+            // TODO: kiểm tra quyền sở hữu — chỉ tác giả mới được sửa:
+            // if (!post.getUser().getId().equals(userId)) return 403 FORBIDDEN;
+
             post.setText(dto.getText());
             if (dto.getIsPinned() != null) {
                 post.setIsPinned(dto.getIsPinned());
             }
             postRepository.save(post);
 
-            logger.info("Post {} updated successfully. IP: {}", post.getId(), ip);
+            logger.info("User {} updated Post {} successfully. IP: {}", userId, post.getId(), ip);
             return ResponseHelper.getResponseSearchMess(HttpStatus.OK, new ResponseMess(0, "UPDATE POST SUCCESS"));
         } catch (Exception e) {
             logger.error("Error in update post: {}", e.getMessage());
@@ -185,20 +188,23 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
-    public ResponseEntity<?> delete(DeleteDto dto, String ip) {
+    public ResponseEntity<?> delete(DeleteDto dto, String userId, String ip) {
         try {
             if (dto.getId() == null || dto.getId().trim().isEmpty()) {
                 return ResponseHelper.getResponseSearchMess(HttpStatus.BAD_REQUEST, new ResponseMess(1, "postId is required"));
             }
 
-            boolean exists = postRepository.existsById(dto.getId());
-            if (!exists) {
+            Post post = postRepository.findById(dto.getId()).orElse(null);
+            if (post == null) {
                 return ResponseHelper.getResponseSearchMess(HttpStatus.NOT_FOUND, new ResponseMess(1, "Post not found with id = " + dto.getId()));
             }
 
+            // TODO: kiểm tra quyền sở hữu — chỉ tác giả mới được xóa:
+            // if (!post.getUser().getId().equals(userId)) return 403 FORBIDDEN;
+
             postRepository.deleteById(dto.getId());
 
-            logger.info("Post {} deleted successfully. IP: {}", dto.getId(), ip);
+            logger.info("User {} deleted Post {} successfully. IP: {}", userId, dto.getId(), ip);
             return ResponseHelper.getResponseSearchMess(HttpStatus.OK, new ResponseMess(0, "DELETE POST SUCCESS"));
         } catch (Exception e) {
             logger.error("Error in delete post: {}", e.getMessage());

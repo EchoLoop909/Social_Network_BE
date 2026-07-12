@@ -9,12 +9,14 @@ public interface PostService {
     Object getList(String id,String userId, String postId , int pageIdx, int pageSize);
 
     /**
-     * Tạo bài viết kèm media. userId lấy từ JWT subject (KHÔNG nhận từ request).
+     * Tạo bài viết kèm media. userId lấy từ token (KHÔNG nhận từ request).
      * Chạy trong @Transactional: rollback cả Post lẫn PostMedia nếu có lỗi.
      */
     ResponseEntity<?> insert(PostInsertDto dto, String userId, String ip);
 
-    ResponseEntity<?> update(PostUpdateDto dto, String ip);
+    /** userId (chủ thể gọi API) lấy từ token — dùng để log và kiểm tra quyền sở hữu. */
+    ResponseEntity<?> update(PostUpdateDto dto, String userId, String ip);
 
-    ResponseEntity<?> delete(DeleteDto dto, String ip);
+    /** userId (chủ thể gọi API) lấy từ token — dùng để log và kiểm tra quyền sở hữu. */
+    ResponseEntity<?> delete(DeleteDto dto, String userId, String ip);
 }
