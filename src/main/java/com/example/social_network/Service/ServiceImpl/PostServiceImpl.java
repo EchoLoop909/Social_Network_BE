@@ -253,6 +253,8 @@ public class PostServiceImpl implements PostService {
                 }
                 post.setVisibility(visibility);
             }
+
+
             postRepository.save(post);
 
             logger.info("User {} updated Post {} successfully. IP: {}", userId, post.getId(), ip);
@@ -264,7 +266,6 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
-    @Transactional
     public ResponseEntity<?> delete(DeleteDto dto, String userId, String ip) {
         try {
             if (dto.getId() == null || dto.getId().trim().isEmpty()) {

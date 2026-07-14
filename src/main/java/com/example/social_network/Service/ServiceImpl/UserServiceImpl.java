@@ -243,7 +243,6 @@ public class UserServiceImpl implements UserService {
                 new ResponseMess(0, "Đăng xuất thành công"));
     }
 
-    /** Giải mã phần payload của JWT (không verify chữ ký) để lấy claim sub, email_verified. */
     @SuppressWarnings("unchecked")
     private Map<String, Object> decodeJwtPayload(String jwt) {
         try {
