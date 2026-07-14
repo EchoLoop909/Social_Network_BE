@@ -12,6 +12,9 @@ out/
 .project
 .settings/
 
+*.log
+*.tmp
+
 # Biên dịch và Đóng gói
 *.class
 *.jar
@@ -19,7 +22,6 @@ out/
 *.ear
 
 # Log files (Sửa lại cú pháp chuẩn)
-*.log
 /logs/
 
 # File hệ thống điều hành sinh ra tự động

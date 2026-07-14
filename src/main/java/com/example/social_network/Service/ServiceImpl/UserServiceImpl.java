@@ -98,13 +98,6 @@ public class UserServiceImpl implements UserService {
         }
     }
 
-    /**
-     * Luồng đăng ký (ĐÃ BỎ xác thực email — tài khoản ACTIVE ngay):
-     *  B2. Kiểm tra trùng email/username trong DB
-     *  B3. Lấy admin token Keycloak
-     *  B4. Tạo user trên Keycloak (emailVerified=true, lấy sub)
-     *  B5. Lưu bảng users với id = sub, status = ACTIVE (rollback Keycloak nếu lỗi)
-     */
     @Override
     public ResponseEntity<?> register(RegisterRequest req) {
         // B2 - kiểm tra trùng lặp
