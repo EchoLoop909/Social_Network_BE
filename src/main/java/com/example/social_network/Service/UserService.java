@@ -5,7 +5,8 @@ import com.example.social_network.Payload.Request.RegisterRequest;
 import org.springframework.http.ResponseEntity;
 
 public interface UserService {
-    Object getUser(String userId, int pageIdx, int pageSize);
+    // viewerId = người đang đăng nhập (từ token) — dùng để ẩn user đã bị chặn / chặn mình.
+    Object getUser(String userId, String viewerId, int pageIdx, int pageSize);
 
     ResponseEntity<?> uploadImg(String username, String url);
 

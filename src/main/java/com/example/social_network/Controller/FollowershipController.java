@@ -1,6 +1,7 @@
 package com.example.social_network.Controller;
 
 import com.example.social_network.Payload.Request.AcceptFriendRequestDto;
+import com.example.social_network.Payload.Request.BlockUserDto;
 import com.example.social_network.Payload.Request.FriendRequestDto;
 import com.example.social_network.Payload.Request.UnfriendDto;
 import com.example.social_network.Payload.Util.PathResources;
@@ -41,5 +42,53 @@ public class FollowershipController {
                                       HttpServletRequest request) {
         String userId = SecurityUtils.getCurrentUserId();
         return followershipService.unfriend(dto, userId, request.getRemoteAddr());
+    }
+
+    // Danh sách bạn bè (ACCEPTED) của người đang đăng nhập.
+    @GetMapping(PathResources.FRIENDS)
+    public ResponseEntity<?> getFriends() {
+        return followershipService.getFriends(SecurityUtils.getCurrentUserId());
+    }
+
+    // Danh sách lời mời kết bạn ĐẾN người đang đăng nhập.
+    @GetMapping(PathResources.FRIENDREQUESTS)
+    public ResponseEntity<?> getFriendRequests() {
+        return followershipService.getFriendRequests(SecurityUtils.getCurrentUserId());
+    }
+
+    // Gợi ý kết bạn cho người đang đăng nhập.
+    @GetMapping(PathResources.FRIENDSUGGESTIONS)
+    public ResponseEntity<?> getSuggestions() {
+        return followershipService.getSuggestions(SecurityUtils.getCurrentUserId());
+    }
+
+    // Từ chối lời mời kết bạn. Người từ chối lấy từ token; xóa bản ghi requester -> mình.
+    @PostMapping(PathResources.REJECTFRIENDREQUEST)
+    public ResponseEntity<?> rejectFriendRequest(@RequestBody AcceptFriendRequestDto dto,
+                                                 HttpServletRequest request) {
+        String userId = SecurityUtils.getCurrentUserId();
+        return followershipService.rejectFriendRequest(dto, userId, request.getRemoteAddr());
+    }
+
+    // Chặn user. Người chặn lấy từ token.
+    @PostMapping(PathResources.BLOCKUSER)
+    public ResponseEntity<?> blockUser(@RequestBody BlockUserDto dto,
+                                       HttpServletRequest request) {
+        String userId = SecurityUtils.getCurrentUserId();
+        return followershipService.blockUser(dto, userId, request.getRemoteAddr());
+    }
+
+    // Bỏ chặn user. Người bỏ chặn lấy từ token.
+    @PostMapping(PathResources.UNBLOCKUSER)
+    public ResponseEntity<?> unblockUser(@RequestBody BlockUserDto dto,
+                                         HttpServletRequest request) {
+        String userId = SecurityUtils.getCurrentUserId();
+        return followershipService.unblockUser(dto, userId, request.getRemoteAddr());
+    }
+
+    // Danh sách user mình đã chặn.
+    @GetMapping(PathResources.BLOCKEDLIST)
+    public ResponseEntity<?> getBlockedUsers() {
+        return followershipService.getBlockedUsers(SecurityUtils.getCurrentUserId());
     }
 }

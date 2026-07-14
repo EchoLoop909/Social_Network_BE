@@ -33,6 +33,12 @@ public class PathResources {
     public static final String BLOCKUSER ="/blockuser";
     public static final String FLOWUSER ="/followuser";
     public static final String UNFRIEND ="/unfriend";
+    public static final String REJECTFRIENDREQUEST ="/rejectfriendrequest";
+    public static final String FRIENDS ="/friends";
+    public static final String FRIENDREQUESTS ="/requests";
+    public static final String FRIENDSUGGESTIONS ="/suggestions";
+    public static final String UNBLOCKUSER ="/unblock";
+    public static final String BLOCKEDLIST ="/blocked";
     public static final String Auth ="/auth";
     public static final String REGISTER ="/register";
     public static final String LOGIN ="/login";

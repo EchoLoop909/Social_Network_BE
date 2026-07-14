@@ -31,6 +31,14 @@ $xml = (New-Object System.IO.StreamReader($e.Open())).ReadToEnd(); $zip.Dispose(
 
 **Khi tài liệu mâu thuẫn với code:** lấy `da_sua.docx` làm chuẩn đặc tả và **báo lại cho người dùng** phần code lệch, thay vì tự quyết. Lưu ý riêng: mục **Auth** trong `da_sua.docx` vẫn mô tả xác thực email + 3 trạng thái, trong khi code thật đã bỏ xác thực email (xem `note.md`) — khi làm phần Auth thì đối chiếu thêm `note.md`. **KHÔNG được tự ý sửa/xóa file trong `docs/`.**
 
+## ⚠️ BẮT BUỘC: Xin phép trước khi sửa code
+
+**KHÔNG được tự ý tạo mới / sửa / xóa bất kỳ file code nào.** Trước mọi thay đổi code, PHẢI:
+1. Trình bày rõ **kế hoạch**: sẽ đụng file nào, thêm/sửa/xóa gì, vì sao.
+2. **Chờ người dùng đồng ý rõ ràng** ("ok", "làm đi", "đồng ý"...) rồi mới thực hiện.
+
+Người dùng muốn **review trước** mọi thay đổi. Được phép làm ngay mà không cần hỏi: đọc/phân tích/giải thích code, chạy lệnh **chỉ đọc** (build/test/query SELECT). Mọi thao tác **ghi** (sửa file code, ghi/xóa DB, chạy migration) đều phải xin phép trước. Quy tắc này áp dụng cho **cả repo BE lẫn FE**.
+
 ## Lệnh thường dùng
 
 Wrapper là `mvnw.cmd` trên Windows (`./mvnw` khi dùng Git Bash).

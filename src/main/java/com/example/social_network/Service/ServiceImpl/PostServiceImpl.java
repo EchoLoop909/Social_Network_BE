@@ -32,6 +32,7 @@ import org.springframework.stereotype.Service;
 import javax.transaction.Transactional;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class PostServiceImpl implements PostService {
@@ -54,12 +55,19 @@ public class PostServiceImpl implements PostService {
         try {
             if (userId != null && !userId.trim().isEmpty()) {
                 String ownerId = userId.trim();
+                // Nếu đã chặn nhau (2 chiều) -> không xem được gì của trang này
+                if (viewerId != null && !ownerId.equals(viewerId)
+                        && followershipRepository.existsBlockBetween(viewerId, ownerId, FollowStatus.BLOCKED)) {
+                    logger.info("Viewer {} bị chặn (BLOCK) khi xem trang của {}", viewerId, ownerId);
+                    return ResponseHelper.getResponses(new ArrayList<Post>(), 0L, 0, HttpStatus.OK);
+                }
                 User owner = userRepository.findById(ownerId).orElse(null);
                 if (owner != null && Boolean.TRUE.equals(owner.getIsPrivate())) {
                     // Kiểm tra người xem có phải chính chủ trang không — để chủ tài khoản private vẫn xem được trang của mình
                     boolean isOwner = ownerId.equals(viewerId);
+                    // Bạn bè xét CẢ 2 CHIỀU (ai gửi lời mời trước cũng tính là bạn)
                     boolean accepted = viewerId != null && followershipRepository
-                            .existsByUserFollower_IdAndUserChecked_IdAndStatus(viewerId, ownerId, FollowStatus.ACCEPTED);
+                            .existsAcceptedBetween(viewerId, ownerId, FollowStatus.ACCEPTED);
                     if (!isOwner && !accepted) {
                         logger.info("Viewer {} bị chặn xem trang riêng tư của {}", viewerId, ownerId);
                         return ResponseHelper.getResponses(new ArrayList<Post>(), 0L, 0, HttpStatus.OK);
@@ -71,12 +79,25 @@ public class PostServiceImpl implements PostService {
             Pageable paging = PageRequest.of(pageIdx, pageSize);
             Page<Post> postsPage;
             if (userId == null && postId == null && id == null) {
-                postsPage = postRepository.findAll(paging);
+                // FEED: chỉ lấy bài người xem được phép thấy (public, chính mình, hoặc bạn bè ACCEPTED)
+                postsPage = postRepository.findFeed(viewerId, paging);
             } else {
                 postsPage = postRepository.findPosts(id, userId != null ? userId.trim() : null,
                         postId != null ? postId.trim() : null, paging);
             }
             results = postsPage.getContent();
+
+            // Nhánh xem 1 bài (?id=) hoặc tìm theo nội dung (?postId=keyword): loại bài của người đã chặn nhau.
+            // (Feed đã lọc BLOCKED trong SQL; trang cá nhân đã chặn ở trên.)
+            boolean isFeed = (userId == null && postId == null && id == null);
+            if (viewerId != null && !isFeed && !results.isEmpty()) {
+                final String v = viewerId;
+                results = results.stream()
+                        .filter(p -> p.getUser() == null
+                                || !followershipRepository.existsBlockBetween(v, p.getUser().getId(), FollowStatus.BLOCKED))
+                        .collect(Collectors.toList());
+            }
+
             logger.info("get list post success page: {} size: {}", pageIdx, pageSize);
             return ResponseHelper.getResponses(results, postsPage.getTotalElements(), postsPage.getTotalPages(), HttpStatus.OK);
         } catch (Exception e) {

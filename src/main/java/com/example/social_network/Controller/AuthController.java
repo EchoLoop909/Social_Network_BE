@@ -26,7 +26,9 @@ public class AuthController {
     public Object getUser(@RequestParam(required = false) String userId,
                           @RequestParam(defaultValue = "1") int pageIdx,
                           @RequestParam(defaultValue = "100") int pageSize){
-        return userService.getUser(userId,pageIdx -1,pageSize);
+        // viewerId từ token để ẩn user đã bị chặn / chặn mình
+        String viewerId = SecurityUtils.getCurrentUserId();
+        return userService.getUser(userId, viewerId, pageIdx -1, pageSize);
     }
 
     @PostMapping(PathResources.UpdaloadImg)

@@ -36,4 +36,35 @@ public interface PostRepository extends JpaRepository<Post,String> {
                          @Param("keyword") String keyword,
                          Pageable pageable);
 
+    /**
+     * Feed cho người đang đăng nhập (viewerId): chỉ lấy bài mà người xem ĐƯỢC PHÉP thấy —
+     * tác giả public (is_private = 0), HOẶC chính mình, HOẶC đã là bạn bè (ACCEPTED, xét cả 2 chiều).
+     * Lọc ngay trong SQL để phân trang đúng.
+     */
+    @Query(
+            value =
+                    "SELECT p.* FROM posts p JOIN users u ON u.id_user = p.id_user " +
+                            "WHERE ( u.is_private = 0 " +
+                            "        OR p.id_user = :viewerId " +
+                            "        OR EXISTS (SELECT 1 FROM followerships f WHERE f.status = 'ACCEPTED' " +
+                            "             AND ((f.id_user_follower = :viewerId AND f.id_user_checked = p.id_user) " +
+                            "               OR (f.id_user_follower = p.id_user AND f.id_user_checked = :viewerId))) ) " +
+                            "  AND NOT EXISTS (SELECT 1 FROM followerships b WHERE b.status = 'BLOCKED' " +
+                            "        AND ((b.id_user_follower = :viewerId AND b.id_user_checked = p.id_user) " +
+                            "          OR (b.id_user_follower = p.id_user AND b.id_user_checked = :viewerId))) " +
+                            "ORDER BY p.create_time DESC",
+            countQuery =
+                    "SELECT COUNT(*) FROM posts p JOIN users u ON u.id_user = p.id_user " +
+                            "WHERE ( u.is_private = 0 " +
+                            "        OR p.id_user = :viewerId " +
+                            "        OR EXISTS (SELECT 1 FROM followerships f WHERE f.status = 'ACCEPTED' " +
+                            "             AND ((f.id_user_follower = :viewerId AND f.id_user_checked = p.id_user) " +
+                            "               OR (f.id_user_follower = p.id_user AND f.id_user_checked = :viewerId))) ) " +
+                            "  AND NOT EXISTS (SELECT 1 FROM followerships b WHERE b.status = 'BLOCKED' " +
+                            "        AND ((b.id_user_follower = :viewerId AND b.id_user_checked = p.id_user) " +
+                            "          OR (b.id_user_follower = p.id_user AND b.id_user_checked = :viewerId)))",
+            nativeQuery = true
+    )
+    Page<Post> findFeed(@Param("viewerId") String viewerId, Pageable pageable);
+
 }

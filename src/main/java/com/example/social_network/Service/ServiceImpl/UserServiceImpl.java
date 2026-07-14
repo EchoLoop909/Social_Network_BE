@@ -3,11 +3,13 @@ package com.example.social_network.Service.ServiceImpl;
 import com.example.social_network.Payload.Request.LoginRequest;
 import com.example.social_network.Payload.Request.RegisterRequest;
 import com.example.social_network.ResHelper.ResponseHelper;
+import com.example.social_network.Repository.FollowershipRepository;
 import com.example.social_network.Repository.UserRepository;
 import com.example.social_network.Service.KeycloakAdminService;
 import com.example.social_network.Service.UserService;
 import com.example.social_network.models.Dto.ResponseMess;
 import com.example.social_network.models.Entity.User;
+import com.example.social_network.models.Enum.FollowStatus;
 import com.example.social_network.models.Enum.UserStatus;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -36,8 +38,11 @@ public class UserServiceImpl implements UserService {
     @Autowired
     private KeycloakAdminService keycloakAdminService;
 
+    @Autowired
+    private FollowershipRepository followershipRepository;
+
     @Override
-    public Object getUser(String userId, int pageIdx, int pageSize) {
+    public Object getUser(String userId, String viewerId, int pageIdx, int pageSize) {
         try {
             Pageable paging = PageRequest.of(pageIdx, pageSize);
             Page<User> usersPage;
@@ -49,6 +54,16 @@ public class UserServiceImpl implements UserService {
             }
 
             List<User> results = usersPage.getContent();
+
+            // Ẩn user đã có quan hệ BLOCKED với người xem (mình chặn họ HOẶC họ chặn mình)
+            if (viewerId != null && !results.isEmpty()) {
+                Set<String> blocked = new HashSet<>(
+                        followershipRepository.findBlockedRelatedIds(viewerId, FollowStatus.BLOCKED));
+                if (!blocked.isEmpty()) {
+                    results = new ArrayList<>(results);
+                    results.removeIf(u -> blocked.contains(u.getId()));
+                }
+            }
 
             logger.info("get list user success page: " + pageIdx + " size: " + pageSize);
             return ResponseHelper.getResponses(
