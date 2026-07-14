@@ -4,6 +4,7 @@ import com.example.social_network.Payload.Request.LoginRequest;
 import com.example.social_network.Payload.Request.RefreshTokenRequest;
 import com.example.social_network.Payload.Request.RegisterRequest;
 import com.example.social_network.Payload.Util.PathResources;
+import com.example.social_network.Payload.Util.SecurityUtils;
 import com.example.social_network.ResHelper.ResponseHelper;
 import com.example.social_network.Service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,6 +32,13 @@ public class AuthController {
     @PostMapping(PathResources.UpdaloadImg)
     public ResponseEntity<?> uploadImg(@RequestParam String username,
                                        @RequestParam String url){
+        return userService.uploadImg(username,url);
+    }
+
+    @PutMapping(PathResources.UpdateUser)
+    public ResponseEntity<?> updateUser(@RequestParam String username,
+                                       @RequestParam String url){
+        String userId = SecurityUtils.getCurrentUserId();
         return userService.uploadImg(username,url);
     }
 

@@ -50,7 +50,7 @@ public class Followership implements Serializable {
     @PrePersist
     public void prePersist() {
         if (id == null) id = UUID.randomUUID().toString();
-        if (status == null) status = FollowStatus.ACCEPTED;
+        if (status == null) status = FollowStatus.FOLLOWING;
         createTime = LocalDateTime.now();
     }
 }

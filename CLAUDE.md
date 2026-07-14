@@ -4,6 +4,33 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Đây là repo **backend** của project SocialNetwork. Repo frontend nằm ở thư mục ngang hàng `../Social_Network_FE`.
 
+## ⚠️ BẮT BUỘC: Đọc tài liệu trong `docs/` trước khi làm bất kỳ việc gì
+
+Trước khi thực hiện **bất kỳ yêu cầu/lệnh nào** liên quan tới code (viết code, sửa code, thêm API, đối chiếu code với đặc tả, giải thích nghiệp vụ, thiết kế DB...), **PHẢI đọc tài liệu đặc tả** để bám đúng nghiệp vụ đồ án, không tự suy đoán.
+
+**Tài liệu đặc tả CHÍNH THỨC — chỉ đọc đúng file này:** `docs/2121050669_Hoàng_Hiệp_da_sua.docx` (quyển đồ án tốt nghiệp).
+
+> **KHÔNG đọc** hai file docx còn lại — `..._BODAXACTHUC.docx` và `...BACKUP.docx` — chúng là bản sao/nháp cũ, chỉ gây nhiễu.
+
+**Hai file `.md` bổ trợ** (đọc thêm khi đụng đúng chủ đề, không bắt buộc mỗi lần):
+
+| File | Nội dung |
+|---|---|
+| `docs/note.md` | Ghi chú luồng đăng ký/đăng nhập Keycloak theo code thực tế |
+| `docs/bang_mo_ta_du_lieu.md` | Data dictionary — 17 bảng, ánh xạ 1-1 với Entity |
+
+**Cách đọc file `.docx`** (file nhị phân, không đọc trực tiếp bằng Read): giải nén `word/document.xml` rồi lọc thẻ. Ví dụ bằng PowerShell:
+
+```powershell
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$zip = [System.IO.Compression.ZipFile]::OpenRead("docs\<ten_file>.docx")
+$e = $zip.Entries | Where-Object { $_.FullName -eq "word/document.xml" }
+$xml = (New-Object System.IO.StreamReader($e.Open())).ReadToEnd(); $zip.Dispose()
+($xml -replace '</w:p>', "`n" -replace '<[^>]+>','') | Out-File docx_text.txt -Encoding utf8
+```
+
+**Khi tài liệu mâu thuẫn với code:** lấy `da_sua.docx` làm chuẩn đặc tả và **báo lại cho người dùng** phần code lệch, thay vì tự quyết. Lưu ý riêng: mục **Auth** trong `da_sua.docx` vẫn mô tả xác thực email + 3 trạng thái, trong khi code thật đã bỏ xác thực email (xem `note.md`) — khi làm phần Auth thì đối chiếu thêm `note.md`. **KHÔNG được tự ý sửa/xóa file trong `docs/`.**
+
 ## Lệnh thường dùng
 
 Wrapper là `mvnw.cmd` trên Windows (`./mvnw` khi dùng Git Bash).

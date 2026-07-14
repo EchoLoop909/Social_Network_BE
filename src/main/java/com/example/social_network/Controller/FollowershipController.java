@@ -2,6 +2,7 @@ package com.example.social_network.Controller;
 
 import com.example.social_network.Payload.Request.AcceptFriendRequestDto;
 import com.example.social_network.Payload.Request.FriendRequestDto;
+import com.example.social_network.Payload.Request.UnfriendDto;
 import com.example.social_network.Payload.Util.PathResources;
 import com.example.social_network.Payload.Util.SecurityUtils;
 import com.example.social_network.Service.FollowershipService;
@@ -32,5 +33,13 @@ public class FollowershipController {
                                                  HttpServletRequest request) {
         String userId = SecurityUtils.getCurrentUserId();
         return followershipService.acceptFriendRequest(dto, userId, request.getRemoteAddr());
+    }
+
+    // Hủy kết bạn/hủy theo dõi. Người thực hiện (A) lấy từ token; xóa quan hệ 2 chiều với B.
+    @PostMapping(PathResources.UNFRIEND)
+    public ResponseEntity<?> unfriend(@RequestBody UnfriendDto dto,
+                                      HttpServletRequest request) {
+        String userId = SecurityUtils.getCurrentUserId();
+        return followershipService.unfriend(dto, userId, request.getRemoteAddr());
     }
 }

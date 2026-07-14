@@ -43,7 +43,8 @@ public class PostController {
                           @RequestParam(required = false) String postId,
                           @RequestParam(defaultValue = "1") int pageIdx,
                           @RequestParam(defaultValue = "100") int pageSize) {
-        return postService.getList(id, userId, postId, pageIdx - 1, pageSize);
+        String viewerId = SecurityUtils.getCurrentUserId();
+        return postService.getList(id, userId, postId, viewerId, pageIdx - 1, pageSize);
     }
 
     // API 2: tạo bài viết kèm media. id_user lấy từ token (KHÔNG nhận từ request).

@@ -2,6 +2,7 @@ package com.example.social_network.Service.ServiceImpl;
 
 import com.example.social_network.Payload.Request.AcceptFriendRequestDto;
 import com.example.social_network.Payload.Request.FriendRequestDto;
+import com.example.social_network.Payload.Request.UnfriendDto;
 import com.example.social_network.Repository.FollowershipRepository;
 import com.example.social_network.Repository.UserRepository;
 import com.example.social_network.ResHelper.ResponseHelper;
@@ -16,6 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
@@ -63,35 +65,32 @@ public class FollowershipServiceImpl implements FollowershipService {
             Followership existing = followershipRepository
                     .findByUserFollower_IdAndUserChecked_Id(userId, targetId).orElse(null);
             if (existing != null) {
-                if (existing.getStatus() == FollowStatus.PENDING) {
+                if (existing.getStatus() == FollowStatus.FOLLOWING) {
                     return ResponseHelper.getResponseSearchMess(HttpStatus.BAD_REQUEST,
-                            new ResponseMess(1, "Đã gửi lời mời trước đó"));
+                            new ResponseMess(1, "Bạn đang theo dõi người này rồi"));
                 }
                 if (existing.getStatus() == FollowStatus.ACCEPTED) {
                     return ResponseHelper.getResponseSearchMess(HttpStatus.BAD_REQUEST,
                             new ResponseMess(1, "Hai người đã là bạn bè"));
                 }
-                // REJECTED -> cho gửi lại: tái sử dụng chính record cũ, đổi về PENDING
-                // (tránh tạo record mới vi phạm UQ id_user_checked + id_user_follower)
-                existing.setStatus(FollowStatus.PENDING);
+                // PENDING/REJECTED cũ -> chuyển sang FOLLOWING
+                existing.setStatus(FollowStatus.FOLLOWING);
                 existing.setUpdateTime(LocalDateTime.now());
                 followershipRepository.save(existing);
 
-                logger.info("User {} re-sent friend request to {}. IP: {}", userId, targetId, ip);
+                logger.info("User {} re-followed {}. IP: {}", userId, targetId, ip);
                 return ResponseHelper.getResponseSearchMess(HttpStatus.OK,
                         new ResponseMess(0, "SEND FRIEND REQUEST SUCCESS"));
             }
 
-            // 5. Chưa có record -> tạo mới, set PENDING TƯỜNG MINH
-            //    (vì @PrePersist của Followership đang default status = ACCEPTED)
+            // 5. Chưa có record -> tạo mới, set FOLLOWING (đang theo dõi) TƯỜNG MINH.
             Followership followership = new Followership();
             followership.setUserFollower(follower);
             followership.setUserChecked(checked);
-            followership.setStatus(FollowStatus.PENDING);
+            followership.setStatus(FollowStatus.FOLLOWING);
             followershipRepository.save(followership);
 
             logger.info("User {} sent friend request to {}. IP: {}", userId, targetId, ip);
-            // 6. Thành công
             return ResponseHelper.getResponseSearchMess(HttpStatus.OK,
                     new ResponseMess(0, "SEND FRIEND REQUEST SUCCESS"));
 
@@ -113,8 +112,6 @@ public class FollowershipServiceImpl implements FollowershipService {
             String requesterId = dto.getRequesterId().trim();
 
             // 2. Tìm record theo cặp (userFollower = B (requester), userChecked = A (người đăng nhập)).
-            //    Đặt userId (JWT) làm userChecked -> query chỉ khớp khi A ĐÚNG là người NHẬN,
-            //    nên B (người gửi) tự gọi accept sẽ không tìm thấy record (không thể tự duyệt).
             Followership followership = followershipRepository
                     .findByUserFollower_IdAndUserChecked_Id(requesterId, userId).orElse(null);
             if (followership == null) {
@@ -127,12 +124,14 @@ public class FollowershipServiceImpl implements FollowershipService {
                 return ResponseHelper.getResponseSearchMess(HttpStatus.BAD_REQUEST,
                         new ResponseMess(1, "Hai người đã là bạn bè"));
             }
-            if (followership.getStatus() != FollowStatus.PENDING) {
+            // Chỉ chấp nhận được khi đang ở FOLLOWING (đang theo dõi) hoặc PENDING (dữ liệu cũ)
+            if (followership.getStatus() != FollowStatus.FOLLOWING
+                    && followership.getStatus() != FollowStatus.PENDING) {
                 return ResponseHelper.getResponseSearchMess(HttpStatus.BAD_REQUEST,
-                        new ResponseMess(1, "Lời mời không ở trạng thái chờ duyệt"));
+                        new ResponseMess(1, "Lời mời không ở trạng thái có thể chấp nhận"));
             }
 
-            // 4. Duyệt: PENDING -> ACCEPTED, set acceptedAt + updateTime
+            // 4. Duyệt: FOLLOWING/PENDING -> ACCEPTED, set acceptedAt + updateTime
             LocalDateTime now = LocalDateTime.now();
             followership.setStatus(FollowStatus.ACCEPTED);
             followership.setAcceptedAt(now);
@@ -145,6 +144,41 @@ public class FollowershipServiceImpl implements FollowershipService {
 
         } catch (Exception e) {
             logger.error("Error in acceptFriendRequest: {}", e.getMessage());
+            return ResponseHelper.getResponseSearchMess(HttpStatus.INTERNAL_SERVER_ERROR,
+                    new ResponseMess(1, "SYSTEM ERROR: " + e.getMessage()));
+        }
+    }
+
+    @Override
+    @Transactional
+    public ResponseEntity<?> unfriend(UnfriendDto dto, String userId, String ip) {
+        try {
+            // 1. Validate input
+            if (dto.getTargetUserId() == null || dto.getTargetUserId().trim().isEmpty()) {
+                return ResponseHelper.getResponseSearchMess(HttpStatus.BAD_REQUEST,
+                        new ResponseMess(1, "targetUserId is required"));
+            }
+            String targetId = dto.getTargetUserId().trim();
+
+            // 2. Không cho tự hủy kết bạn với chính mình
+            if (userId != null && userId.equals(targetId)) {
+                return ResponseHelper.getResponseSearchMess(HttpStatus.BAD_REQUEST,
+                        new ResponseMess(1, "Không thể tự hủy kết bạn với chính mình"));
+            }
+
+            // 3. Xóa mọi quan hệ giữa A (userId) và B (targetId) theo CẢ 2 CHIỀU
+            int deleted = followershipRepository.deleteRelationBetween(userId, targetId);
+            if (deleted == 0) {
+                return ResponseHelper.getResponseSearchMess(HttpStatus.NOT_FOUND,
+                        new ResponseMess(1, "Hai người chưa có quan hệ theo dõi/kết bạn để hủy"));
+            }
+
+            logger.info("User {} unfriended {} (deleted {} record(s)). IP: {}", userId, targetId, deleted, ip);
+            return ResponseHelper.getResponseSearchMess(HttpStatus.OK,
+                    new ResponseMess(0, "UNFRIEND SUCCESS"));
+
+        } catch (Exception e) {
+            logger.error("Error in unfriend: {}", e.getMessage());
             return ResponseHelper.getResponseSearchMess(HttpStatus.INTERNAL_SERVER_ERROR,
                     new ResponseMess(1, "SYSTEM ERROR: " + e.getMessage()));
         }

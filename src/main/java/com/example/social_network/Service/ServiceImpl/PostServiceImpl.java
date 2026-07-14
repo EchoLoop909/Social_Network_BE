@@ -1,5 +1,6 @@
 package com.example.social_network.Service.ServiceImpl;
 
+import com.example.social_network.Repository.FollowershipRepository;
 import com.example.social_network.Repository.PostMediaRepository;
 import com.example.social_network.Repository.PostRepository;
 import com.example.social_network.Repository.UserRepository;
@@ -13,6 +14,7 @@ import com.example.social_network.models.Dto.ResponseMess;
 import com.example.social_network.models.Entity.Post;
 import com.example.social_network.models.Entity.PostMedia;
 import com.example.social_network.models.Entity.User;
+import com.example.social_network.models.Enum.FollowStatus;
 import com.example.social_network.models.Enum.MediaType;
 import com.example.social_network.models.Enum.PostStatus;
 import com.example.social_network.models.Enum.PostType;
@@ -44,9 +46,27 @@ public class PostServiceImpl implements PostService {
     @Autowired
     private PostMediaRepository postMediaRepository;
 
+    @Autowired
+    private FollowershipRepository followershipRepository;
+
     @Override
-    public Object getList(String id, String userId, String postId, int pageIdx, int pageSize) {
+    public Object getList(String id, String userId, String postId, String viewerId, int pageIdx, int pageSize) {
         try {
+            if (userId != null && !userId.trim().isEmpty()) {
+                String ownerId = userId.trim();
+                User owner = userRepository.findById(ownerId).orElse(null);
+                if (owner != null && Boolean.TRUE.equals(owner.getIsPrivate())) {
+                    // Kiểm tra người xem có phải chính chủ trang không — để chủ tài khoản private vẫn xem được trang của mình
+                    boolean isOwner = ownerId.equals(viewerId);
+                    boolean accepted = viewerId != null && followershipRepository
+                            .existsByUserFollower_IdAndUserChecked_IdAndStatus(viewerId, ownerId, FollowStatus.ACCEPTED);
+                    if (!isOwner && !accepted) {
+                        logger.info("Viewer {} bị chặn xem trang riêng tư của {}", viewerId, ownerId);
+                        return ResponseHelper.getResponses(new ArrayList<Post>(), 0L, 0, HttpStatus.OK);
+                    }
+                }
+            }
+
             List<Post> results;
             Pageable paging = PageRequest.of(pageIdx, pageSize);
             Page<Post> postsPage;
@@ -66,17 +86,6 @@ public class PostServiceImpl implements PostService {
         }
     }
 
-    /**
-     * Tạo bài viết kèm media trong 1 transaction.
-     * <p>
-     * NGOẠI LỆ CONVENTION (chỉ áp dụng cho method @Transactional này): khối catch
-     * KHÔNG return ResponseHelper lỗi như các Service khác — phải throw lại
-     * RuntimeException sau khi log để Spring rollback toàn bộ (Post + PostMedia).
-     * Nếu catch rồi return bình thường, Spring sẽ KHÔNG rollback.
-     * <p>
-     * Method là public và được gọi từ Controller qua Spring proxy (không self-invocation)
-     * nên @Transactional có hiệu lực.
-     */
     @Override
     @Transactional
     public ResponseEntity<?> insert(PostInsertDto dto, String userId, String ip) {
@@ -150,33 +159,14 @@ public class PostServiceImpl implements PostService {
 
             logger.info("User {} created Post {} (type {}) with {} media. IP: {}",
                     userId, post.getId(), postType, mediaEmpty ? 0 : media.size(), ip);
-            // 7. Thành công
             return ResponseHelper.getResponseSearchMess(HttpStatus.OK, new ResponseMess(0, "INSERT POST SUCCESS"));
 
         } catch (Exception e) {
             logger.error("Error in insert post: {}", e.getMessage());
-            // BẮT BUỘC throw lại để @Transactional rollback (KHÔNG return như convention thường)
             throw new RuntimeException("INSERT POST FAILED: " + e.getMessage(), e);
         }
     }
 
-    /**
-     * Share (repost nội bộ) 1 bài viết trong 1 transaction: tạo Post share mới + tăng
-     * share_count của bài được share TRỰC TIẾP.
-     * <p>
-     * Mỗi lượt share là 1 bài độc lập: bài share mới trỏ thẳng vào ĐÚNG bài mà người
-     * dùng bấm share (id_original_post = bài đó), và share_count được cộng cho chính
-     * bài đó — KHÔNG dồn về bài gốc đầu chuỗi. Nếu share lại 1 bài vốn đã là share thì
-     * hình thành chuỗi (C -> B -> A), phản ánh đúng "ai lan truyền từ ai"; độ sâu hiển
-     * thị card lồng do FE tự giới hạn.
-     * <p>
-     * Ngoại lệ: KHÔNG cho share tiếp 1 bài đã mất gốc (is_shared = true nhưng
-     * originalPost đã bị xoá) — chặn lan truyền thêm bài đã hỏng gốc.
-     * <p>
-     * NGOẠI LỆ CONVENTION (method @Transactional): khối catch phải throw lại
-     * RuntimeException sau khi log để Spring rollback đúng cả 2 thao tác ghi —
-     * giống pattern insert (Post) và react (Like).
-     */
     @Override
     @Transactional
     public ResponseEntity<?> share(PostShareDto dto, String userId, String ip) {
@@ -199,9 +189,6 @@ public class PostServiceImpl implements PostService {
             }
 
             // 2b. Không cho share tiếp 1 bài đã mất gốc: nếu bài định share vốn là 1 lượt
-            //     share (is_shared = true) nhưng bài nó từng trỏ tới đã bị xoá
-            //     (originalPost = null do ON DELETE SET NULL) thì coi như đã hỏng gốc,
-            //     không cho lan truyền thêm.
             if (Boolean.TRUE.equals(target.getIsShared()) && target.getOriginalPost() == null) {
                 return ResponseHelper.getResponseSearchMess(HttpStatus.BAD_REQUEST,
                         new ResponseMess(1, "Không thể share bài viết đã mất bài gốc"));
@@ -226,18 +213,15 @@ public class PostServiceImpl implements PostService {
             postRepository.save(sharePost);
 
             // 5. Tăng share_count của chính bài được share trực tiếp lên 1
-            //    (target đang được quản lý trong transaction nên set + save trực tiếp)
             target.setShareCount((target.getShareCount() == null ? 0 : target.getShareCount()) + 1);
             postRepository.save(target);
 
             logger.info("User {} shared Post {} as Post {}. IP: {}",
                     userId, target.getId(), sharePost.getId(), ip);
-            // 6. Thành công
             return ResponseHelper.getResponseSearchMess(HttpStatus.OK, new ResponseMess(0, "SHARE POST SUCCESS"));
 
         } catch (Exception e) {
             logger.error("Error in share post: {}", e.getMessage());
-            // BẮT BUỘC throw lại để @Transactional rollback (KHÔNG return như convention thường)
             throw new RuntimeException("SHARE POST FAILED: " + e.getMessage(), e);
         }
     }
@@ -253,9 +237,6 @@ public class PostServiceImpl implements PostService {
             if (post == null) {
                 return ResponseHelper.getResponseSearchMess(HttpStatus.NOT_FOUND, new ResponseMess(1, "Post not found with id = " + dto.getId()));
             }
-
-            // TODO: kiểm tra quyền sở hữu — chỉ tác giả mới được sửa:
-            // if (!post.getUser().getId().equals(userId)) return 403 FORBIDDEN;
 
             post.setText(dto.getText());
             if (dto.getIsPinned() != null) {
@@ -282,18 +263,6 @@ public class PostServiceImpl implements PostService {
         }
     }
 
-    /**
-     * Xoá bài viết. Nếu bài bị xoá là 1 lượt share (is_shared = true và còn trỏ tới bài
-     * được share), giảm share_count của ĐÚNG bài mà nó trỏ tới (bài được share trực tiếp)
-     * đi 1 TRƯỚC khi xoá (không cho xuống dưới 0) — đối xứng với lúc tạo share.
-     * <p>
-     * Khi xoá 1 bài đang có người khác share nó: KHÔNG xoá các bài share đó — DB tự set
-     * id_original_post = NULL nhờ ON DELETE SET NULL; is_shared của các bài share giữ
-     * nguyên true để FE hiển thị "Bài viết gốc không còn tồn tại".
-     * <p>
-     * NGOẠI LỆ CONVENTION (method @Transactional): có thể ghi 2 thao tác (giảm share_count
-     * + xoá Post) -> catch phải throw lại RuntimeException để Spring rollback đúng cả 2.
-     */
     @Override
     @Transactional
     public ResponseEntity<?> delete(DeleteDto dto, String userId, String ip) {
@@ -306,9 +275,6 @@ public class PostServiceImpl implements PostService {
             if (post == null) {
                 return ResponseHelper.getResponseSearchMess(HttpStatus.NOT_FOUND, new ResponseMess(1, "Post not found with id = " + dto.getId()));
             }
-
-            // TODO: kiểm tra quyền sở hữu — chỉ tác giả mới được xóa:
-            // if (!post.getUser().getId().equals(userId)) return 403 FORBIDDEN;
 
             // Bài bị xoá là 1 lượt share -> giảm share_count của bài nó trỏ tới trực tiếp (không âm)
             if (Boolean.TRUE.equals(post.getIsShared()) && post.getOriginalPost() != null) {
@@ -324,7 +290,6 @@ public class PostServiceImpl implements PostService {
             return ResponseHelper.getResponseSearchMess(HttpStatus.OK, new ResponseMess(0, "DELETE POST SUCCESS"));
         } catch (Exception e) {
             logger.error("Error in delete post: {}", e.getMessage());
-            // BẮT BUỘC throw lại để @Transactional rollback (KHÔNG return như convention thường)
             throw new RuntimeException("DELETE POST FAILED: " + e.getMessage(), e);
         }
     }
