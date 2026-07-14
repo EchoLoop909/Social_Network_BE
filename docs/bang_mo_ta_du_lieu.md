@@ -34,10 +34,13 @@ Hệ thống gồm **17 bảng**, ánh xạ 1-1 từ các lớp Entity trong mã
 | 1 | id_followership | VARCHAR(36) | PK, NN | Khóa chính |
 | 2 | id_user_checked | VARCHAR(36) | FK→users, NN | Người được theo dõi |
 | 3 | id_user_follower | VARCHAR(36) | FK→users, NN | Người đi theo dõi |
-| 4 | status | VARCHAR(10) | NN | ACCEPTED (công khai/đã duyệt) / PENDING (riêng tư, chờ duyệt) |
+| 4 | status | VARCHAR(10) | NN | FOLLOWING (đang theo dõi – set ngay khi gửi lời mời) / ACCEPTED (đã được chấp nhận – bạn bè, xem được cả tài khoản riêng tư) / PENDING (dữ liệu cũ, chờ duyệt) / REJECTED (đã bị từ chối) / BLOCKED (đã chặn; khi đó id_user_follower là người chặn, id_user_checked là người bị chặn) |
 | 5 | create_time | DATETIME | NN | Thời điểm tạo |
+| 6 | update_time | DATETIME | | Thời điểm cập nhật trạng thái gần nhất (null nếu chưa từng đổi) |
+| 7 | accepted_at | DATETIME | | Thời điểm được chấp nhận (chuyển sang ACCEPTED); null nếu chưa được duyệt |
 
 > **UQ** (id_user_checked, id_user_follower): không theo dõi trùng.
+> Quan hệ BLOCKED dùng chung bảng này: một bản ghi BLOCKED thay thế mọi quan hệ theo dõi/kết bạn cũ giữa hai người; hai bên bị ẩn hoàn toàn với nhau (feed, tìm kiếm, trang cá nhân, lời mời).
 
 ---
 
