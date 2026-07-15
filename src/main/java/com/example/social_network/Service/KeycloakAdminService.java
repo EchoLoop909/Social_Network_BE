@@ -12,6 +12,9 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -106,11 +109,22 @@ public class KeycloakAdminService {
     }
 
     /**
-     * ② Tạo user trong Keycloak.
+     * ② Tạo user trong Keycloak (Keycloak tự sinh id). Dùng cho luồng đăng ký.
      * @return userId (sub) lấy từ header Location của response 201.
      * Ném HttpClientErrorException.Conflict (409) nếu Keycloak báo trùng username/email.
      */
     public String createUser(RegisterRequest req, String adminToken) {
+        return createUser(req, adminToken, null);
+    }
+
+    /**
+     * ② Tạo user trong Keycloak, có thể chỉ định trước id (desiredId).
+     * Khi desiredId != null, gửi kèm field "id" để Keycloak dùng luôn id này
+     * -> đảm bảo users.id_user (DB) == id user trên Keycloak khi đồng bộ, không phải đổi khóa chính.
+     * Khi desiredId == null, Keycloak tự sinh id như thường.
+     * @return userId (sub) lấy từ header Location của response 201.
+     */
+    public String createUser(RegisterRequest req, String adminToken, String desiredId) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.setBearerAuth(adminToken);
@@ -121,15 +135,17 @@ public class KeycloakAdminService {
                 "temporary", false
         );
 
-        Map<String, Object> body = Map.of(
-                "username", req.getUsername(),
-                "email", req.getEmail(),
-                "firstName", req.getFirstname(),
-                "lastName", req.getLastname(),
-                "enabled", true,
-                "emailVerified", true,
-                "credentials", List.of(credential)
-        );
+        Map<String, Object> body = new HashMap<>();
+        if (StringUtils.hasText(desiredId)) {
+            body.put("id", desiredId);
+        }
+        body.put("username", req.getUsername());
+        body.put("email", req.getEmail());
+        body.put("firstName", req.getFirstname());
+        body.put("lastName", req.getLastname());
+        body.put("enabled", true);
+        body.put("emailVerified", true);
+        body.put("credentials", List.of(credential));
 
         ResponseEntity<Void> resp = restTemplate.postForEntity(
                 usersUrl(), new HttpEntity<>(body, headers), Void.class);
@@ -141,6 +157,31 @@ public class KeycloakAdminService {
         String userId = location.substring(location.lastIndexOf('/') + 1);
         logger.info("Keycloak đã tạo user, sub = {}", userId);
         return userId;
+    }
+
+    /**
+     * Tra id (sub) của user trên Keycloak theo username (khớp chính xác).
+     * Dùng khi đồng bộ: user đã tồn tại trên Keycloak (409) -> lấy id thật để đồng bộ id DB cho khớp.
+     * @return id user trên Keycloak, hoặc null nếu không tìm thấy.
+     */
+    @SuppressWarnings("rawtypes")
+    public String findUserIdByUsername(String username, String adminToken) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(adminToken);
+
+        String url = usersUrl() + "?exact=true&username="
+                + URLEncoder.encode(username, StandardCharsets.UTF_8);
+        ResponseEntity<List> resp = restTemplate.exchange(
+                url, HttpMethod.GET, new HttpEntity<>(headers), List.class);
+
+        List body = resp.getBody();
+        if (body == null || body.isEmpty()) return null;
+        Object first = body.get(0);
+        if (first instanceof Map) {
+            Object id = ((Map<?, ?>) first).get("id");
+            return id != null ? id.toString() : null;
+        }
+        return null;
     }
 
     /** Rollback: xóa user vừa tạo ở Keycloak khi bước lưu DB thất bại. */

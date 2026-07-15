@@ -8,6 +8,7 @@ public class PathResources {
     public static final String INSERT ="/insert";
     public static final String SHARE ="/share";
     public static final String GetUser ="/getuser";
+    public static final String SYNC_KEYCLOAK ="/sync-keycloak";
     public static final String MESSAGE ="/message";
     public static final String DELETE ="/delete";
     public static final String LIKE ="/like";
@@ -39,6 +40,7 @@ public class PathResources {
     public static final String FRIENDSUGGESTIONS ="/suggestions";
     public static final String UNBLOCKUSER ="/unblock";
     public static final String BLOCKEDLIST ="/blocked";
+    public static final String STORY ="/story";
     public static final String Auth ="/auth";
     public static final String REGISTER ="/register";
     public static final String LOGIN ="/login";

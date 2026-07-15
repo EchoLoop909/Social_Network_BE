@@ -7,7 +7,9 @@ import com.example.social_network.Repository.FollowershipRepository;
 import com.example.social_network.Repository.UserRepository;
 import com.example.social_network.Service.KeycloakAdminService;
 import com.example.social_network.Service.UserService;
+import com.example.social_network.models.Dto.DeleteDto;
 import com.example.social_network.models.Dto.ResponseMess;
+import com.example.social_network.models.Dto.UserUpdateDto;
 import com.example.social_network.models.Entity.User;
 import com.example.social_network.models.Enum.FollowStatus;
 import com.example.social_network.models.Enum.UserStatus;
@@ -25,6 +27,7 @@ import org.springframework.web.client.HttpStatusCodeException;
 
 import javax.transaction.Transactional;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
 import java.util.*;
 
 @Service
@@ -42,16 +45,15 @@ public class UserServiceImpl implements UserService {
     private FollowershipRepository followershipRepository;
 
     @Override
-    public Object getUser(String userId, String viewerId, int pageIdx, int pageSize) {
+    public Object getUser(String userId, String keyword, String viewerId, int pageIdx, int pageSize) {
         try {
             Pageable paging = PageRequest.of(pageIdx, pageSize);
-            Page<User> usersPage;
 
-            if (userId == null || userId.isEmpty()) {
-                usersPage = userRepository.findAll(paging);
-            } else {
-                usersPage = userRepository.findUser(userId, paging);
-            }
+            // Chuẩn hóa: chuỗi rỗng -> null để bỏ qua điều kiện lọc tương ứng trong query.
+            String userIdParam = (userId == null || userId.trim().isEmpty()) ? null : userId.trim();
+            String keywordParam = (keyword == null || keyword.trim().isEmpty()) ? null : keyword.trim();
+
+            Page<User> usersPage = userRepository.findUser(userIdParam, keywordParam, paging);
 
             List<User> results = usersPage.getContent();
 
@@ -110,6 +112,88 @@ public class UserServiceImpl implements UserService {
             return ResponseEntity
                     .status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new ResponseMess(1, "SYSTEM ERROR: " + e.getMessage()));
+        }
+    }
+
+    @Override
+    @Transactional
+    public ResponseEntity<?>  updateUser(String userId, UserUpdateDto dto, String ip) {
+        try {
+            if (userId == null || userId.trim().isEmpty()) {
+                return ResponseHelper.getResponseSearchMess(HttpStatus.UNAUTHORIZED, new ResponseMess(1, "Chưa xác thực người dùng"));
+            }
+            if (dto == null) {
+                return ResponseHelper.getResponseSearchMess(HttpStatus.BAD_REQUEST, new ResponseMess(1, "Dữ liệu cập nhật rỗng"));
+            }
+            if (dto.getDescription() != null && dto.getDescription().length() > 2000) {
+                return ResponseHelper.getResponseSearchMess(HttpStatus.BAD_REQUEST, new ResponseMess(1, "Description vượt quá 2000 ký tự"));
+            }
+
+            User user = userRepository.findById(userId).orElse(null);
+            if (user == null) {
+                return ResponseHelper.getResponseSearchMess(HttpStatus.NOT_FOUND, new ResponseMess(1, "User not found with id = " + userId));
+            }
+
+            // Partial update: chỉ cập nhật field khác null.
+            if (dto.getName() != null && !dto.getName().trim().isEmpty()) {
+                user.setName(dto.getName().trim());
+            }
+            if (dto.getFirstname() != null && !dto.getFirstname().trim().isEmpty()) {
+                user.setFirstname(dto.getFirstname().trim());
+            }
+            if (dto.getLastname() != null && !dto.getLastname().trim().isEmpty()) {
+                user.setLastname(dto.getLastname().trim());
+            }
+            if (dto.getSurname() != null && !dto.getSurname().trim().isEmpty()) {
+                user.setSurname(dto.getSurname().trim());
+            }
+            if (dto.getDescription() != null) {
+                user.setDescription(dto.getDescription().trim());
+            }
+            if (dto.getPhoto() != null && !dto.getPhoto().trim().isEmpty()) {
+                user.setPhoto(dto.getPhoto().trim());
+            }
+            if (dto.getIsPrivate() != null) {
+                user.setIsPrivate(dto.getIsPrivate());
+            }
+            userRepository.save(user);
+
+            logger.info("User {} updated profile successfully. IP: {}", userId, ip);
+            return ResponseHelper.getResponseSearchMess(HttpStatus.OK, new ResponseMess(0, "UPDATE USER SUCCESS"));
+
+        } catch (Exception e) {
+            logger.error("Error in updateUser: {}", e.getMessage());
+            return ResponseHelper.getResponseSearchMess(HttpStatus.INTERNAL_SERVER_ERROR, new ResponseMess(1, "UPDATE FAILED: " + e.getMessage()));
+        }
+    }
+
+    @Override
+    @Transactional
+    public ResponseEntity<?> deleteUser(DeleteDto dto, String ip) {
+        try {
+            if (dto == null || dto.getId() == null || dto.getId().trim().isEmpty()) {
+                return ResponseHelper.getResponseSearchMess(HttpStatus.BAD_REQUEST, new ResponseMess(1, "userId is required"));
+            }
+
+            User user = userRepository.findById(dto.getId().trim()).orElse(null);
+            if (user == null) {
+                return ResponseHelper.getResponseSearchMess(HttpStatus.NOT_FOUND, new ResponseMess(1, "User not found with id = " + dto.getId()));
+            }
+            if (user.getDeletionDate() != null) {
+                return ResponseHelper.getResponseSearchMess(HttpStatus.BAD_REQUEST, new ResponseMess(1, "User đã bị xóa trước đó"));
+            }
+
+            // Xóa mềm: giữ lại bản ghi + bài viết, chỉ đánh dấu thời điểm xóa và đình chỉ tài khoản.
+            user.setDeletionDate(LocalDateTime.now());
+            user.setStatus(UserStatus.SUSPENDED);
+            userRepository.save(user);
+
+            logger.info("Soft-deleted user {} successfully. IP: {}", dto.getId(), ip);
+            return ResponseHelper.getResponseSearchMess(HttpStatus.OK, new ResponseMess(0, "DELETE USER SUCCESS"));
+
+        } catch (Exception e) {
+            logger.error("Error in deleteUser: {}", e.getMessage());
+            return ResponseHelper.getResponseSearchMess(HttpStatus.INTERNAL_SERVER_ERROR, new ResponseMess(1, "DELETE FAILED: " + e.getMessage()));
         }
     }
 
@@ -249,6 +333,71 @@ public class UserServiceImpl implements UserService {
         }
         return ResponseHelper.getResponseSearchMess(HttpStatus.OK,
                 new ResponseMess(0, "Đăng xuất thành công"));
+    }
+
+    @Override
+    public ResponseEntity<?> syncUsersToKeycloak() {
+        int created = 0, skipped = 0, failed = 0;
+        List<String> errors = new ArrayList<>();
+        try {
+            String adminToken = keycloakAdminService.getAdminAccessToken();
+            List<User> all = userRepository.findAll();
+            logger.info("Bắt đầu đồng bộ {} user lên Keycloak", all.size());
+
+            for (User u : all) {
+                try {
+                    RegisterRequest req = new RegisterRequest();
+                    req.setUsername(u.getUsername());
+                    req.setEmail(u.getEmail());
+                    req.setName(u.getName());
+                    req.setFirstname(u.getFirstname());
+                    req.setLastname(u.getLastname());
+                    req.setSurname(u.getSurname());
+                    req.setPassword("123abc"); // mật khẩu mặc định theo yêu cầu
+
+                    // Tạo user trên Keycloak (Keycloak tự sinh id/sub).
+                    String sub = keycloakAdminService.createUser(req, adminToken);
+                    // Đồng bộ id DB = sub Keycloak (FK đã có ON UPDATE CASCADE nên lan xuống bảng con).
+                    if (sub != null && !sub.equals(u.getId())) {
+                        userRepository.updateUserId(sub, u.getId());
+                    }
+                    created++;
+                } catch (HttpStatusCodeException ex) {
+                    if (ex.getStatusCode() == HttpStatus.CONFLICT) {
+                        // User đã tồn tại trên Keycloak -> tra id thật rồi đồng bộ id DB cho khớp (idempotent).
+                        try {
+                            String kcId = keycloakAdminService.findUserIdByUsername(u.getUsername(), adminToken);
+                            if (kcId != null && !kcId.equals(u.getId())) {
+                                userRepository.updateUserId(kcId, u.getId());
+                                created++;
+                            } else {
+                                skipped++; // đã khớp sẵn hoặc không tra được -> bỏ qua
+                            }
+                        } catch (Exception re) {
+                            failed++;
+                            errors.add(u.getUsername() + " (reconcile): " + re.getMessage());
+                        }
+                    } else {
+                        failed++;
+                        errors.add(u.getUsername() + ": " + ex.getStatusCode());
+                    }
+                } catch (Exception ex) {
+                    failed++;
+                    errors.add(u.getUsername() + ": " + ex.getMessage());
+                }
+            }
+
+            String mess = "SYNC KEYCLOAK DONE - created=" + created
+                    + ", skipped=" + skipped + ", failed=" + failed
+                    + (errors.isEmpty() ? "" : " | errors: " + String.join("; ", errors));
+            logger.info(mess);
+            return ResponseHelper.getResponseSearchMess(HttpStatus.OK, new ResponseMess(0, mess));
+
+        } catch (Exception e) {
+            logger.error("Lỗi đồng bộ Keycloak: {}", e.getMessage());
+            return ResponseHelper.getResponseSearchMess(HttpStatus.INTERNAL_SERVER_ERROR,
+                    new ResponseMess(1, "SYSTEM ERROR: " + e.getMessage()));
+        }
     }
 
     @SuppressWarnings("unchecked")

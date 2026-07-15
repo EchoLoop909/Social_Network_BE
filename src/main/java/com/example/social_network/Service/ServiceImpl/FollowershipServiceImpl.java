@@ -222,7 +222,7 @@ public class FollowershipServiceImpl implements FollowershipService {
             List<Followership> reqs = followershipRepository.findIncomingRequests(
                     userId, Arrays.asList(FollowStatus.FOLLOWING, FollowStatus.PENDING));
             List<UserSummaryDto> result = reqs.stream()
-                    .map(f -> UserSummaryDto.from(f.getUserFollower())) // người GỬI lời mời
+                    .map(f -> UserSummaryDto.from(f.getUserFollower()))
                     .collect(Collectors.toList());
             logger.info("getFriendRequests of {} -> {} lời mời", userId, result.size());
             return ResponseHelper.getResponses(result, result.size(), 1, HttpStatus.OK);
@@ -238,7 +238,7 @@ public class FollowershipServiceImpl implements FollowershipService {
         try {
             List<String> related = followershipRepository.findRelatedUserIds(userId);
             Set<String> exclude = new HashSet<>(related);
-            exclude.add(userId); // loại chính mình
+            exclude.add(userId);
             List<UserSummaryDto> result = userRepository.findAll().stream()
                     .filter(u -> !exclude.contains(u.getId()))
                     .map(UserSummaryDto::from)
