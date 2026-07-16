@@ -61,8 +61,9 @@ public class Story implements Serializable {
     @PrePersist
     public void prePersist() {
         if (id == null) id = UUID.randomUUID().toString();
-        createdAt = LocalDateTime.now();
-        expiresAt = createdAt.plusHours(24);
+        if (createdAt == null) createdAt = LocalDateTime.now();
+        // Chỉ mặc định 24h khi service CHƯA set expiresAt (cho phép tuỳ chỉnh số giờ hết hạn).
+        if (expiresAt == null) expiresAt = createdAt.plusHours(24);
         if (isArchived == null) isArchived = false;
         if (mediaType == null) mediaType = MediaType.IMAGE;
     }

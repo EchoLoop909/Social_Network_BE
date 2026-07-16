@@ -41,6 +41,12 @@ public interface FollowershipRepository extends JpaRepository<Followership, Stri
     List<Followership> findIncomingRequests(@Param("me") String me,
                                             @Param("statuses") Collection<FollowStatus> statuses);
 
+    // Lời mời mình ĐÃ GỬI ĐI: mình là người gửi (userFollower), status thuộc danh sách (FOLLOWING/PENDING).
+    @Query("SELECT f FROM Followership f JOIN FETCH f.userChecked " +
+            "WHERE f.userFollower.id = :me AND f.status IN :statuses ORDER BY f.createTime DESC")
+    List<Followership> findOutgoingRequests(@Param("me") String me,
+                                            @Param("statuses") Collection<FollowStatus> statuses);
+
     // Bạn bè: quan hệ ACCEPTED, mình ở 1 trong 2 phía (follower hoặc checked).
     @Query("SELECT f FROM Followership f JOIN FETCH f.userFollower JOIN FETCH f.userChecked " +
             "WHERE f.status = :accepted AND (f.userFollower.id = :me OR f.userChecked.id = :me) " +

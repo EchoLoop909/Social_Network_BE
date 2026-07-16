@@ -234,6 +234,23 @@ public class FollowershipServiceImpl implements FollowershipService {
     }
 
     @Override
+    public ResponseEntity<?> getSentRequests(String userId) {
+        try {
+            List<Followership> reqs = followershipRepository.findOutgoingRequests(
+                    userId, Arrays.asList(FollowStatus.FOLLOWING, FollowStatus.PENDING));
+            List<UserSummaryDto> result = reqs.stream()
+                    .map(f -> UserSummaryDto.from(f.getUserChecked()))
+                    .collect(Collectors.toList());
+            logger.info("getSentRequests of {} -> {} lời mời đã gửi", userId, result.size());
+            return ResponseHelper.getResponses(result, result.size(), 1, HttpStatus.OK);
+        } catch (Exception e) {
+            logger.error("Error in getSentRequests: {}", e.getMessage());
+            return ResponseHelper.getResponseSearchMess(HttpStatus.INTERNAL_SERVER_ERROR,
+                    new ResponseMess(1, "SYSTEM ERROR: " + e.getMessage()));
+        }
+    }
+
+    @Override
     public ResponseEntity<?> getSuggestions(String userId) {
         try {
             List<String> related = followershipRepository.findRelatedUserIds(userId);

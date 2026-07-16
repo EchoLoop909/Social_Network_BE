@@ -44,16 +44,24 @@ public class FollowershipController {
         return followershipService.unfriend(dto, userId, request.getRemoteAddr());
     }
 
-    // Danh sách bạn bè (ACCEPTED) của người đang đăng nhập.
+    // Danh sách bạn bè (ACCEPTED). Không truyền userId -> của người đang đăng nhập; có userId -> của user đó (xem trang cá nhân người khác).
     @GetMapping(PathResources.FRIENDS)
-    public ResponseEntity<?> getFriends() {
-        return followershipService.getFriends(SecurityUtils.getCurrentUserId());
+    public ResponseEntity<?> getFriends(@RequestParam(required = false) String userId) {
+        String target = (userId != null && !userId.trim().isEmpty()) ? userId.trim() : SecurityUtils.getCurrentUserId();
+        return followershipService.getFriends(target);
     }
 
     // Danh sách lời mời kết bạn ĐẾN người đang đăng nhập.
     @GetMapping(PathResources.FRIENDREQUESTS)
     public ResponseEntity<?> getFriendRequests() {
         return followershipService.getFriendRequests(SecurityUtils.getCurrentUserId());
+    }
+
+    // Danh sách lời mời ĐÃ GỬI ĐI (đang theo dõi). Không truyền userId -> của người đang đăng nhập; có userId -> của user đó.
+    @GetMapping(PathResources.SENTREQUESTS)
+    public ResponseEntity<?> getSentRequests(@RequestParam(required = false) String userId) {
+        String target = (userId != null && !userId.trim().isEmpty()) ? userId.trim() : SecurityUtils.getCurrentUserId();
+        return followershipService.getSentRequests(target);
     }
 
     // Gợi ý kết bạn cho người đang đăng nhập.

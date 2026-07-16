@@ -21,6 +21,9 @@ public interface FollowershipService {
     // Danh sách lời mời kết bạn ĐẾN userId (đang chờ xử lý).
     ResponseEntity<?> getFriendRequests(String userId);
 
+    // Danh sách lời mời kết bạn userId ĐÃ GỬI ĐI (đang chờ người kia duyệt).
+    ResponseEntity<?> getSentRequests(String userId);
+
     // Gợi ý kết bạn: các user chưa có quan hệ nào với userId.
     ResponseEntity<?> getSuggestions(String userId);
 

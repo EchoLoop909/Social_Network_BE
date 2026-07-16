@@ -10,6 +10,7 @@ import com.example.social_network.models.Dto.ResponseMess;
 import com.example.social_network.models.Entity.Story;
 import com.example.social_network.models.Entity.User;
 import com.example.social_network.models.Enum.MediaType;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -57,11 +58,32 @@ public class StoryServiceImpl implements StoryService {
                 }
             }
 
+            // Số giờ hết hạn: mặc định 24h, hợp lệ 1..168 (7 ngày)
+            int hours = 24;
+            if (dto.getExpiresInHours() != null) {
+                hours = dto.getExpiresInHours();
+                if (hours < 1 || hours > 168) {
+                    return ResponseHelper.getResponseSearchMess(HttpStatus.BAD_REQUEST, new ResponseMess(1, "expiresInHours phải trong khoảng 1..168 giờ"));
+                }
+            }
+
+            // metadata (nếu có) phải là JSON hợp lệ
+            String metadata = null;
+            if (dto.getMetadata() != null && !dto.getMetadata().trim().isEmpty()) {
+                try {
+                    new ObjectMapper().readTree(dto.getMetadata());
+                    metadata = dto.getMetadata();
+                } catch (Exception ex) {
+                    return ResponseHelper.getResponseSearchMess(HttpStatus.BAD_REQUEST, new ResponseMess(1, "metadata không phải JSON hợp lệ"));
+                }
+            }
+
             User user = userRepository.findById(userId).orElse(null);
             if (user == null) {
                 return ResponseHelper.getResponseSearchMess(HttpStatus.NOT_FOUND, new ResponseMess(1, "User not found with id = " + userId));
             }
 
+            LocalDateTime now = LocalDateTime.now();
             Story story = new Story();
             story.setUser(user);
             story.setMediaUrl(dto.getMediaUrl().trim());
@@ -70,8 +92,9 @@ public class StoryServiceImpl implements StoryService {
             if (dto.getIsArchived() != null) {
                 story.setIsArchived(dto.getIsArchived());
             }
-            story.setMetadata(dto.getMetadata());
-            // created_at + expires_at (= created_at + 24h) do @PrePersist tự set.
+            story.setMetadata(metadata);
+            story.setCreatedAt(now);
+            story.setExpiresAt(now.plusHours(hours));
             storyRepository.save(story);
 
             logger.info("User {} created story {}. IP: {}", userId, story.getId(), ip);

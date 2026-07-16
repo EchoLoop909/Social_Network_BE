@@ -2,10 +2,7 @@ package com.example.social_network.Payload.Request;
 
 import lombok.Data;
 
-/**
- * DTO đăng story. id_user KHÔNG nhận từ request — lấy từ JWT subject ở tầng Controller/Service.
- * created_at / expires_at (= created_at + 24h) do entity tự sinh trong @PrePersist.
- */
+
 @Data
 public class StoryRequest {
 
@@ -17,5 +14,9 @@ public class StoryRequest {
 
     private Boolean isArchived;
 
+    // Số giờ story tồn tại trước khi hết hạn. Null -> mặc định 24h. Hợp lệ 1..168 (7 ngày).
+    private Integer expiresInHours;
+
+    // JSON overlay: nhạc, vị trí caption, sticker... (toạ độ chuẩn hoá 0..1). Null nếu không có.
     private String metadata;
 }
