@@ -9,7 +9,12 @@ public class PathResources {
     public static final String SHARE ="/share";
     public static final String GetUser ="/getuser";
     public static final String SYNC_KEYCLOAK ="/sync-keycloak";
+    public static final String KAFKA_DEMO ="/kafka-demo"; // demo Bước 3: test Kafka thông
     public static final String MESSAGE ="/message";
+    public static final String CONVERSATION ="/conversation";   // tạo/mở hội thoại
+    public static final String CONVERSATIONS ="/conversations";  // danh sách hội thoại (Inbox)
+    public static final String SEND ="/send";                    // gửi tin nhắn
+    public static final String HISTORY ="/history";              // lịch sử tin nhắn
     public static final String DELETE ="/delete";
     public static final String LIKE ="/like";
     public static final String LIKEPOST ="/likepost";

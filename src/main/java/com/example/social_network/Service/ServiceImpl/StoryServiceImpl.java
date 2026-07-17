@@ -1,5 +1,6 @@
 package com.example.social_network.Service.ServiceImpl;
 
+import com.example.social_network.Config.Cloudinary.CloudinaryService;
 import com.example.social_network.Payload.Request.StoryRequest;
 import com.example.social_network.Repository.StoryRepository;
 import com.example.social_network.Repository.UserRepository;
@@ -20,9 +21,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class StoryServiceImpl implements StoryService {
@@ -34,6 +37,34 @@ public class StoryServiceImpl implements StoryService {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private CloudinaryService cloudinaryService;
+
+    @Override
+    public ResponseEntity<?> createStoryFromFile(MultipartFile file, String caption, Boolean isArchived,
+                                                 Integer expiresInHours, String metadata, String userId, String ip) {
+        try {
+            if (file == null || file.isEmpty()) {
+                return ResponseHelper.getResponseSearchMess(HttpStatus.BAD_REQUEST, new ResponseMess(1, "Vui lòng chọn 1 tệp ảnh hoặc video"));
+            }
+            // Upload lên Cloudinary -> lấy url + type (IMAGE/VIDEO do content-type suy ra)
+            Map<String, Object> media = cloudinaryService.uploadMedia(file);
+
+            StoryRequest dto = new StoryRequest();
+            dto.setMediaUrl(String.valueOf(media.get("url")));
+            dto.setMediaType(String.valueOf(media.get("type")));
+            dto.setCaption(caption);
+            dto.setIsArchived(isArchived);
+            dto.setExpiresInHours(expiresInHours);
+            dto.setMetadata(metadata);
+            // Tái dùng toàn bộ validate + logic tạo story bên dưới
+            return createStory(dto, userId, ip);
+        } catch (Exception e) {
+            logger.error("Error in createStoryFromFile: {}", e.getMessage());
+            return ResponseHelper.getResponseSearchMess(HttpStatus.INTERNAL_SERVER_ERROR, new ResponseMess(1, "Tải media lên thất bại: " + e.getMessage()));
+        }
+    }
 
     @Override
     public ResponseEntity<?> createStory(StoryRequest dto, String userId, String ip) {

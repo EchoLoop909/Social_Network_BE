@@ -11,7 +11,7 @@ import java.util.UUID;
 
 /**
  * Thông báo đẩy tới người dùng (Notification Engine).
- * Được sinh ra khi có sự kiện like/comment/reply/follow/tag qua Kafka.
+ * Được sinh ra khi có sự kiện like/comment/reply/follow/tag.
  */
 @Entity
 @Table(name = "notifications")

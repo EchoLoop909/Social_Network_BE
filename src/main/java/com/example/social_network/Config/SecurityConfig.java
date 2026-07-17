@@ -51,6 +51,8 @@ public class SecurityConfig {
                                 PathResources.Auth + PathResources.LOGOUT).permitAll()
                         .antMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**",
                                 "/swagger-resources/**", "/webjars/**").permitAll()
+                        // WebSocket handshake (SockJS) — cho phép để client kết nối nhận tin real-time
+                        .antMatchers("/ws/**").permitAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()));
         return http.build();

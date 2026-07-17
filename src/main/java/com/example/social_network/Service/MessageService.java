@@ -1,16 +1,27 @@
-//package com.example.social_network.Service;
-//
-//import com.example.social_network.Payload.Request.MessageRequest;
-//import com.example.social_network.Payload.Response.MessageResponse;
-//import org.springframework.http.ResponseEntity;
-//
-//public interface MessageService {
-//
-//    // Phương thức này dùng cho API REST thông thường
-//    ResponseEntity<?> sendMessage(MessageRequest request, String ip);
-//
-//    // Phương thức này chuyên dùng cho luồng Kafka/WebSocket (trả về DTO trực tiếp)
-//    MessageResponse processAndSaveMessage(MessageRequest request);
-//
-//    Object getMessagesByConversation(String conversationId, int pageIdx, int pageSize);
-//}
+package com.example.social_network.Service;
+
+import com.example.social_network.Payload.Request.ConversationRequest;
+import com.example.social_network.Payload.Request.MessageRequest;
+import org.springframework.http.ResponseEntity;
+
+/**
+ * Chat BƯỚC 1 (chưa Kafka): Controller -> Service (lưu DB + đẩy WebSocket).
+ * userId (người thao tác) luôn lấy từ token, KHÔNG nhận từ request body.
+ */
+public interface MessageService {
+
+    // Tạo/mở hội thoại. 1 người -> SINGLE (mở lại nếu đã có); nhiều người -> GROUP.
+    ResponseEntity<?> createConversation(ConversationRequest dto, String userId, String ip);
+
+    // Gửi tin nhắn (BƯỚC 2): validate + NÉM event vào Kafka topic, trả về ngay.
+    ResponseEntity<?> sendMessage(MessageRequest dto, String userId, String ip);
+
+    // CONSUMER Kafka gọi: lưu DB + đẩy WebSocket. senderId lấy từ chính event.
+    void processAndDeliver(MessageRequest dto);
+
+    // Lịch sử tin nhắn của 1 hội thoại (phân trang, mới nhất trước).
+    Object getMessages(String conversationId, String userId, int pageIdx, int pageSize);
+
+    // Danh sách hội thoại của người đang đăng nhập (Inbox), sắp theo tin mới nhất.
+    Object getConversations(String userId, int pageIdx, int pageSize);
+}
