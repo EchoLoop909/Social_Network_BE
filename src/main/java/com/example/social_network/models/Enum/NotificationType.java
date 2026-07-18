@@ -7,5 +7,6 @@ public enum NotificationType {
     FOLLOW,         // Có người theo dõi (tài khoản public)
     FOLLOW_REQUEST, // Có yêu cầu theo dõi chờ duyệt (tài khoản private)
     TAG,            // Được gắn thẻ trong bài viết
+    MESSAGE,        // Có người nhắn tin trong hội thoại
     SYSTEM          // Thông báo hệ thống (vi phạm, kiểm duyệt...)
 }

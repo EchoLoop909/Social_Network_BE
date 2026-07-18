@@ -14,8 +14,14 @@ public interface StoryService {
     ResponseEntity<?> createStoryFromFile(MultipartFile file, String caption, Boolean isArchived,
                                           Integer expiresInHours, String metadata, String userId, String ip);
 
-    /** Danh sách story đang hiển thị (chưa hết hạn hoặc Highlight) của 1 user (ownerId). */
+    /** Danh sách story CÒN HẠN của 1 user (ownerId) — dùng cho trang chủ (Highlight hết hạn KHÔNG hiện). */
     Object getStories(String ownerId, int pageIdx, int pageSize);
+
+    /** Danh sách Highlight (isArchived=true) của 1 user — dùng cho trang cá nhân, giữ mãi. */
+    Object getHighlights(String ownerId, int pageIdx, int pageSize);
+
+    /** Bật/tắt Highlight cho 1 story. archived=null -> đảo trạng thái. Chỉ chủ tin. */
+    ResponseEntity<?> setHighlight(String storyId, Boolean archived, String userId, String ip);
 
     /** Xóa story — chỉ chủ tin (userId từ token). Xóa cascade luôn story_views. */
     ResponseEntity<?> deleteStory(DeleteDto dto, String userId, String ip);

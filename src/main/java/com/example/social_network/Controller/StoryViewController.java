@@ -33,4 +33,10 @@ public class StoryViewController {
     public Object getViewers(@RequestParam String storyId) {
         return storyViewService.getViewers(storyId);
     }
+
+    // Danh sách id story mà NGƯỜI ĐANG ĐĂNG NHẬP đã xem (để FE tô viền "đã xem" theo DB).
+    @GetMapping(PathResources.SEEN)
+    public Object getSeenStoryIds() {
+        return storyViewService.getSeenStoryIds(SecurityUtils.getCurrentUserId());
+    }
 }

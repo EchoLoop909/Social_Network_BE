@@ -6,7 +6,10 @@ import com.example.social_network.Repository.PostRepository;
 import com.example.social_network.Repository.UserRepository;
 import com.example.social_network.ResHelper.ResponseHelper;
 import com.example.social_network.Service.CommentService;
+import com.example.social_network.Service.NotificationService;
 import com.example.social_network.models.Dto.CommentRootResponse;
+import com.example.social_network.models.Dto.NotificationEvent;
+import com.example.social_network.models.Enum.NotificationType;
 import com.example.social_network.models.Dto.CommentUpdateDto;
 import com.example.social_network.models.Dto.DeleteDto;
 import com.example.social_network.models.Dto.ResponseMess;
@@ -38,6 +41,9 @@ public class CommentServiceImpl implements CommentService {
 
     @Autowired
     private PostRepository postRepository;
+
+    @Autowired
+    private NotificationService notificationService;
 
     // ================= API 1: TẠO COMMENT (gốc hoặc reply) =================
     @Override
@@ -90,6 +96,27 @@ public class CommentServiceImpl implements CommentService {
 
             logger.info("User {} added comment {} on Post {} (parent={}). IP: {}",
                     userId, comment.getId(), post.getId(), parent != null ? parent.getId() : "null", ip);
+
+            // Thông báo: reply -> báo chủ comment gốc (REPLY); comment gốc -> báo chủ bài viết (COMMENT).
+            // Bọc try/catch riêng để lỗi noti không ảnh hưởng việc tạo comment. targetId = postId để điều hướng.
+            try {
+                if (parent != null) {
+                    String parentOwner = parent.getUser() != null ? parent.getUser().getId() : null;
+                    if (parentOwner != null && !parentOwner.equals(userId)) {
+                        notificationService.publish(new NotificationEvent(
+                                parentOwner, userId, NotificationType.REPLY.name(), post.getId(), comment.getText()));
+                    }
+                } else {
+                    String postOwner = post.getUser() != null ? post.getUser().getId() : null;
+                    if (postOwner != null && !postOwner.equals(userId)) {
+                        notificationService.publish(new NotificationEvent(
+                                postOwner, userId, NotificationType.COMMENT.name(), post.getId(), comment.getText()));
+                    }
+                }
+            } catch (Exception ex) {
+                logger.error("Lỗi tạo notification cho comment {}: {}", comment.getId(), ex.getMessage());
+            }
+
             return ResponseHelper.getResponseSearchMess(HttpStatus.OK, new ResponseMess(0, "ADD COMMENT SUCCESS"));
 
         } catch (Exception e) {

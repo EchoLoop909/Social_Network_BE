@@ -9,4 +9,7 @@ public interface StoryViewService {
 
     /** Danh sách người đã xem 1 story (mới nhất trước). */
     Object getViewers(String storyId);
+
+    /** Danh sách id story mà 1 user đã xem (để FE tô viền "đã xem"). */
+    Object getSeenStoryIds(String userId);
 }

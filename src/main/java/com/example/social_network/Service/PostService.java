@@ -27,4 +27,7 @@ public interface PostService {
 
     /** userId (chủ thể gọi API) lấy từ token — dùng để log và kiểm tra quyền sở hữu. */
     ResponseEntity<?> delete(DeleteDto dto, String userId, String ip);
+
+    /** Danh sách user đã chia sẻ (repost) 1 bài viết. */
+    Object getSharers(String postId);
 }

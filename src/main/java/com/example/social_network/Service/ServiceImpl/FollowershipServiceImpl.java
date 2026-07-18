@@ -8,7 +8,10 @@ import com.example.social_network.Repository.FollowershipRepository;
 import com.example.social_network.Repository.UserRepository;
 import com.example.social_network.ResHelper.ResponseHelper;
 import com.example.social_network.Service.FollowershipService;
+import com.example.social_network.Service.NotificationService;
+import com.example.social_network.models.Dto.NotificationEvent;
 import com.example.social_network.models.Dto.ResponseMess;
+import com.example.social_network.models.Enum.NotificationType;
 import com.example.social_network.models.Dto.UserSummaryDto;
 import com.example.social_network.models.Entity.Followership;
 import com.example.social_network.models.Entity.User;
@@ -37,6 +40,19 @@ public class FollowershipServiceImpl implements FollowershipService {
 
     @Autowired
     private FollowershipRepository followershipRepository;
+
+    @Autowired
+    private NotificationService notificationService;
+
+    /** Gửi thông báo liên quan follow. targetId(nav) = id người gây sự kiện để mở trang cá nhân họ. */
+    private void notifyFollow(String recipientId, String actorId, NotificationType type, String preview) {
+        try {
+            if (recipientId == null || recipientId.equals(actorId)) return;
+            notificationService.publish(new NotificationEvent(recipientId, actorId, type.name(), actorId, preview));
+        } catch (Exception ex) {
+            logger.error("Lỗi tạo notification {} cho {}: {}", type, recipientId, ex.getMessage());
+        }
+    }
 
     @Override
     public ResponseEntity<?> sendFriendRequest(FriendRequestDto dto, String userId, String ip) {
@@ -92,6 +108,7 @@ public class FollowershipServiceImpl implements FollowershipService {
                 followershipRepository.save(existing);
 
                 logger.info("User {} re-followed {}. IP: {}", userId, targetId, ip);
+                notifyFollow(targetId, userId, NotificationType.FOLLOW_REQUEST, null);
                 return ResponseHelper.getResponseSearchMess(HttpStatus.OK,
                         new ResponseMess(0, "SEND FRIEND REQUEST SUCCESS"));
             }
@@ -104,6 +121,7 @@ public class FollowershipServiceImpl implements FollowershipService {
             followershipRepository.save(followership);
 
             logger.info("User {} sent friend request to {}. IP: {}", userId, targetId, ip);
+            notifyFollow(targetId, userId, NotificationType.FOLLOW_REQUEST, null);
             return ResponseHelper.getResponseSearchMess(HttpStatus.OK,
                     new ResponseMess(0, "SEND FRIEND REQUEST SUCCESS"));
 
@@ -152,6 +170,7 @@ public class FollowershipServiceImpl implements FollowershipService {
             followershipRepository.save(followership);
 
             logger.info("User {} accepted friend request from {}. IP: {}", userId, requesterId, ip);
+            notifyFollow(requesterId, userId, NotificationType.FOLLOW, "đã chấp nhận lời mời kết bạn của bạn");
             return ResponseHelper.getResponseSearchMess(HttpStatus.OK,
                     new ResponseMess(0, "ACCEPT FRIEND REQUEST SUCCESS"));
 
@@ -187,6 +206,8 @@ public class FollowershipServiceImpl implements FollowershipService {
             }
 
             logger.info("User {} unfriended {} (deleted {} record(s)). IP: {}", userId, targetId, deleted, ip);
+            // Báo real-time cho người kia tự bỏ mình khỏi danh sách bạn bè (không hiện chuông).
+            notificationService.notifyFriendshipSync(targetId);
             return ResponseHelper.getResponseSearchMess(HttpStatus.OK,
                     new ResponseMess(0, "UNFRIEND SUCCESS"));
 

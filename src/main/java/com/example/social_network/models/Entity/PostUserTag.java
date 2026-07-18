@@ -5,12 +5,10 @@ import lombok.*;
 
 import javax.persistence.*;
 import java.io.Serializable;
-import java.math.BigDecimal;
 import java.util.Objects;
 
 /**
- * Tag người dùng vào ảnh/bài đăng (@mention).
- * x_position, y_position: tọa độ phần trăm (%) trên ảnh — null nếu chỉ tag trong caption.
+ * Tag (nhắc đến) người dùng trong bài đăng (@mention).
  */
 @Entity
 @Table(name = "post_user_tags")
@@ -33,14 +31,6 @@ public class PostUserTag implements Serializable {
     @MapsId("userId")
     @JoinColumn(name = "id_user", nullable = false)
     private User user;
-
-    // Tọa độ X (%) trên ảnh để hiển thị pin khi hover — null nếu tag trong caption
-    @Column(name = "x_position", precision = 5, scale = 2)
-    private BigDecimal xPosition;
-
-    // Tọa độ Y (%) trên ảnh
-    @Column(name = "y_position", precision = 5, scale = 2)
-    private BigDecimal yPosition;
 
     // ─── Composite PK ────────────────────────────────────────────────────────
 

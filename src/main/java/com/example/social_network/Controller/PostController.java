@@ -47,6 +47,12 @@ public class PostController {
         return postService.getList(id, userId, postId, viewerId, pageIdx - 1, pageSize);
     }
 
+    // Danh sách user đã chia sẻ (repost) 1 bài viết.
+    @GetMapping(PathResources.SHARERS)
+    public Object getSharers(@RequestParam String postId) {
+        return postService.getSharers(postId);
+    }
+
     // API 2: tạo bài viết kèm media. id_user lấy từ token (KHÔNG nhận từ request).
     @PostMapping(PathResources.INSERT)
     public ResponseEntity<?> insert(@RequestBody PostInsertDto dto,

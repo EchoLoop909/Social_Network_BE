@@ -15,4 +15,8 @@ public interface StoryViewRepository extends JpaRepository<StoryView, StoryView.
     @Query("SELECT v FROM StoryView v JOIN FETCH v.user " +
             "WHERE v.story.id = :storyId ORDER BY v.viewedAt DESC")
     List<StoryView> findViewers(@Param("storyId") String storyId);
+
+    // Danh sách id các story mà 1 user đã xem (để FE tô viền "đã xem" theo DB).
+    @Query("SELECT v.story.id FROM StoryView v WHERE v.user.id = :userId")
+    List<String> findSeenStoryIds(@Param("userId") String userId);
 }

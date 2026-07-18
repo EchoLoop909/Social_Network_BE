@@ -88,4 +88,19 @@ public class StoryViewServiceImpl implements StoryViewService {
             return ResponseHelper.getResponseSearchMess(HttpStatus.INTERNAL_SERVER_ERROR, new ResponseMess(1, "SYSTEM ERROR: " + e.getMessage()));
         }
     }
+
+    @Override
+    public Object getSeenStoryIds(String userId) {
+        try {
+            if (userId == null || userId.trim().isEmpty()) {
+                return ResponseHelper.getResponseSearchMess(HttpStatus.UNAUTHORIZED, new ResponseMess(1, "Chưa xác thực người dùng"));
+            }
+            List<String> ids = storyViewRepository.findSeenStoryIds(userId.trim());
+            logger.info("getSeenStoryIds of {} -> {} story đã xem", userId, ids.size());
+            return ResponseHelper.getResponses(ids, ids.size(), 1, HttpStatus.OK);
+        } catch (Exception e) {
+            logger.error("Error in getSeenStoryIds: {}", e.getMessage());
+            return ResponseHelper.getResponseSearchMess(HttpStatus.INTERNAL_SERVER_ERROR, new ResponseMess(1, "SYSTEM ERROR: " + e.getMessage()));
+        }
+    }
 }

@@ -3,9 +3,14 @@ package com.example.social_network.Service.ServiceImpl;
 import com.example.social_network.Repository.FollowershipRepository;
 import com.example.social_network.Repository.PostMediaRepository;
 import com.example.social_network.Repository.PostRepository;
+import com.example.social_network.Repository.PostUserTagRepository;
 import com.example.social_network.Repository.UserRepository;
 import com.example.social_network.ResHelper.ResponseHelper;
+import com.example.social_network.Service.NotificationService;
 import com.example.social_network.Service.PostService;
+import com.example.social_network.models.Dto.NotificationEvent;
+import com.example.social_network.models.Entity.PostUserTag;
+import com.example.social_network.models.Enum.NotificationType;
 import com.example.social_network.models.Dto.DeleteDto;
 import com.example.social_network.models.Dto.Posts.PostInsertDto;
 import com.example.social_network.models.Dto.Posts.PostShareDto;
@@ -31,7 +36,11 @@ import org.springframework.stereotype.Service;
 
 import javax.transaction.Transactional;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Service
@@ -49,6 +58,39 @@ public class PostServiceImpl implements PostService {
 
     @Autowired
     private FollowershipRepository followershipRepository;
+
+    @Autowired
+    private PostUserTagRepository postUserTagRepository;
+
+    @Autowired
+    private NotificationService notificationService;
+
+    // Bắt @username trong nội dung bài (chữ, số, dấu chấm, gạch dưới)
+    private static final Pattern MENTION = Pattern.compile("@([A-Za-z0-9._]+)");
+
+    /** Parse @mention trong text -> tạo PostUserTag + gửi thông báo TAG cho người được nhắc. */
+    private void tagMentionedUsers(Post post, String authorId) {
+        String text = post.getText();
+        if (text == null || text.isEmpty()) return;
+        Matcher m = MENTION.matcher(text);
+        Set<String> done = new HashSet<>();
+        while (m.find()) {
+            String uname = m.group(1);
+            if (!done.add(uname.toLowerCase())) continue;
+            User tagged = userRepository.findByUsername(uname).orElse(null);
+            if (tagged == null || tagged.getId().equals(authorId)) continue;
+            PostUserTag.PostUserTagId id = new PostUserTag.PostUserTagId(post.getId(), tagged.getId());
+            if (postUserTagRepository.existsById(id)) continue;
+            postUserTagRepository.save(new PostUserTag(id, post, tagged));
+            try {
+                notificationService.publish(new NotificationEvent(
+                        tagged.getId(), authorId, NotificationType.TAG.name(), post.getId(),
+                        "đã nhắc đến bạn trong một bài viết"));
+            } catch (Exception ex) {
+                logger.error("Lỗi noti TAG cho {}: {}", tagged.getId(), ex.getMessage());
+            }
+        }
+    }
 
     @Override
     public Object getList(String id, String userId, String postId, String viewerId, int pageIdx, int pageSize) {
@@ -178,9 +220,15 @@ public class PostServiceImpl implements PostService {
                 postMediaRepository.saveAll(mediaEntities);
             }
 
+            // Tự gắn thẻ những @username được nhắc trong nội dung + gửi thông báo cho họ
+            tagMentionedUsers(post, userId);
+
             logger.info("User {} created Post {} (type {}) with {} media. IP: {}",
                     userId, post.getId(), postType, mediaEmpty ? 0 : media.size(), ip);
-            return ResponseHelper.getResponseSearchMess(HttpStatus.OK, new ResponseMess(0, "INSERT POST SUCCESS"));
+            java.util.Map<String, Object> data = new java.util.HashMap<>();
+            data.put("id", post.getId());
+            data.put("postId", post.getId());
+            return ResponseHelper.buildResponse(data, HttpStatus.OK);
 
         } catch (Exception e) {
             logger.error("Error in insert post: {}", e.getMessage());
@@ -313,6 +361,27 @@ public class PostServiceImpl implements PostService {
         } catch (Exception e) {
             logger.error("Error in delete post: {}", e.getMessage());
             throw new RuntimeException("DELETE POST FAILED: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public Object getSharers(String postId) {
+        try {
+            if (postId == null || postId.trim().isEmpty()) {
+                return ResponseHelper.getResponseSearchMess(HttpStatus.BAD_REQUEST, new ResponseMess(1, "postId is required"));
+            }
+            java.util.Map<String, com.example.social_network.models.Dto.UserSummaryDto> uniq = new java.util.LinkedHashMap<>();
+            for (User u : postRepository.findSharers(postId.trim())) {
+                if (u != null && !uniq.containsKey(u.getId())) {
+                    uniq.put(u.getId(), com.example.social_network.models.Dto.UserSummaryDto.from(u));
+                }
+            }
+            List<com.example.social_network.models.Dto.UserSummaryDto> result = new ArrayList<>(uniq.values());
+            logger.info("getSharers of {} -> {}", postId, result.size());
+            return ResponseHelper.getResponses(result, result.size(), 1, HttpStatus.OK);
+        } catch (Exception e) {
+            logger.error("Error in getSharers: {}", e.getMessage());
+            return ResponseHelper.getResponseSearchMess(HttpStatus.INTERNAL_SERVER_ERROR, new ResponseMess(1, "SYSTEM ERROR: " + e.getMessage()));
         }
     }
 }

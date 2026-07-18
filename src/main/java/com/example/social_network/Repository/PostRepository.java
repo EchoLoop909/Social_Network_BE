@@ -1,6 +1,7 @@
 package com.example.social_network.Repository;
 
 import com.example.social_network.models.Entity.Post;
+import com.example.social_network.models.Entity.User;
 import io.lettuce.core.dynamic.annotation.Param;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -8,6 +9,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -66,5 +68,9 @@ public interface PostRepository extends JpaRepository<Post,String> {
             nativeQuery = true
     )
     Page<Post> findFeed(@Param("viewerId") String viewerId, Pageable pageable);
+
+    // Danh sách user đã CHIA SẺ (repost) 1 bài viết (mới nhất trước).
+    @Query("SELECT p.user FROM Post p WHERE p.originalPost.id = :postId AND p.isShared = true ORDER BY p.createTime DESC")
+    List<User> findSharers(@org.springframework.data.repository.query.Param("postId") String postId);
 
 }

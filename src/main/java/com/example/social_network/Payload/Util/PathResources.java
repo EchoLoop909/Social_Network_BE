@@ -48,9 +48,24 @@ public class PathResources {
     public static final String BLOCKEDLIST ="/blocked";
     public static final String STORY ="/story";
     public static final String STORY_VIEW ="/story-view";
+    public static final String HIGHLIGHT ="/highlight";
+    public static final String HIGHLIGHTS ="/highlights";
+    public static final String SEEN ="/seen";
+    public static final String BOOKMARK ="/bookmark";
+    public static final String TOGGLE ="/toggle";
+    public static final String IDS ="/ids";
+    public static final String HASHTAG ="/hashtag";
+    public static final String POST_HASHTAG ="/post-hashtag";
+    public static final String POST_USER_TAG ="/post-user-tag";
+    public static final String TAGGED ="/tagged";
+    public static final String SHARERS ="/sharers";
     public static final String Auth ="/auth";
     public static final String REGISTER ="/register";
     public static final String LOGIN ="/login";
     public static final String LOGOUT ="/logout";
     public static final String UpdateUser ="/updateuser";
+    public static final String NOTIFICATION ="/notification";
+    public static final String UNREAD_COUNT ="/unread-count";
+    public static final String READ ="/read";
+    public static final String READ_ALL ="/read-all";
 }

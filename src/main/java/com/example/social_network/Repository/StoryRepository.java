@@ -26,4 +26,10 @@ public interface StoryRepository extends JpaRepository<Story, String> {
     Page<Story> findVisibleByUser(@Param("userId") String userId,
                                   @Param("now") LocalDateTime now,
                                   Pageable pageable);
+
+    // HOME: chỉ story CÒN HẠN (expires_at > now) — Highlight hết hạn sẽ KHÔNG hiện ở trang chủ.
+    Page<Story> findByUser_IdAndExpiresAtAfterOrderByCreatedAtDesc(String userId, LocalDateTime now, Pageable pageable);
+
+    // PROFILE: chỉ story Highlight (is_archived = true) — giữ mãi bất kể hết hạn.
+    Page<Story> findByUser_IdAndIsArchivedTrueOrderByCreatedAtDesc(String userId, Pageable pageable);
 }

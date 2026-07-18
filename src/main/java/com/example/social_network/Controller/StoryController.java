@@ -3,6 +3,7 @@ package com.example.social_network.Controller;
 import com.example.social_network.Payload.Util.PathResources;
 import com.example.social_network.Payload.Util.SecurityUtils;
 import com.example.social_network.Service.StoryService;
+import com.example.social_network.Payload.Request.StoryHighlightDto;
 import com.example.social_network.models.Dto.DeleteDto;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -41,6 +42,25 @@ public class StoryController {
                 ? userId.trim()
                 : SecurityUtils.getCurrentUserId();
         return storyService.getStories(ownerId, pageIdx - 1, pageSize);
+    }
+
+    // Danh sách Highlight của 1 user (giữ mãi). Không truyền userId -> Highlight của chính mình.
+    @GetMapping(PathResources.HIGHLIGHTS)
+    public Object getHighlights(@RequestParam(required = false) String userId,
+                                @RequestParam(defaultValue = "1") int pageIdx,
+                                @RequestParam(defaultValue = "50") int pageSize) {
+        String ownerId = (userId != null && !userId.trim().isEmpty())
+                ? userId.trim()
+                : SecurityUtils.getCurrentUserId();
+        return storyService.getHighlights(ownerId, pageIdx - 1, pageSize);
+    }
+
+    // Bật/tắt Highlight cho 1 story (chỉ chủ tin). Body: { id, isArchived }.
+    @PutMapping(PathResources.HIGHLIGHT)
+    public ResponseEntity<?> setHighlight(@RequestBody StoryHighlightDto dto,
+                                          HttpServletRequest request) {
+        String userId = SecurityUtils.getCurrentUserId();
+        return storyService.setHighlight(dto.getId(), dto.getIsArchived(), userId, request.getRemoteAddr());
     }
 
     // Xóa story theo id trong body. Chỉ chủ tin mới xóa được (userId từ token).

@@ -9,6 +9,7 @@ import com.example.social_network.Repository.ParticipantRepository;
 import com.example.social_network.Repository.UserRepository;
 import com.example.social_network.ResHelper.ResponseHelper;
 import com.example.social_network.Service.MessageService;
+import com.example.social_network.Service.NotificationService;
 import com.example.social_network.models.Dto.ResponseMess;
 import com.example.social_network.models.Entity.Conversation;
 import com.example.social_network.models.Entity.Messages;
@@ -49,6 +50,10 @@ public class MessageServiceImpl implements MessageService {
 
     @Autowired
     private UserRepository userRepository;
+
+    // Sinh thông báo (qua Kafka topic "notifications") khi có tin nhắn mới.
+    @Autowired
+    private NotificationService notificationService;
 
     // Công cụ đẩy dữ liệu qua WebSocket (có nhờ WebSocketConfig). Đây là phần "real-time".
     @Autowired
@@ -229,6 +234,14 @@ public class MessageServiceImpl implements MessageService {
             // ĐẨY REAL-TIME: người trong phòng đang subscribe sẽ nhận ngay
             messagingTemplate.convertAndSend("/topic/conversation/" + conv.getId(), res);
 
+            // Sinh thông báo cho các thành viên khác trong hội thoại (qua Kafka topic "notifications").
+            // Bọc try/catch riêng để lỗi noti KHÔNG làm hỏng luồng lưu/đẩy tin nhắn.
+            try {
+                notificationService.notifyNewMessage(conv, sender, msg);
+            } catch (Exception ex) {
+                logger.error("Lỗi tạo notification cho tin {}: {}", msg.getId(), ex.getMessage());
+            }
+
             logger.info("Consumer đã LƯU + ĐẨY tin {} (conversation {})", msg.getId(), conv.getId());
         } catch (Exception e) {
             logger.error("Error in processAndDeliver: {}", e.getMessage());
@@ -278,6 +291,22 @@ public class MessageServiceImpl implements MessageService {
                 item.put("type", c.getType() != null ? c.getType().name() : null);
                 item.put("lastMessageTime", c.getLastMessageTime());
                 item.put("lastMessage", last == null ? null : toResponse(last));
+
+                // Chat 1-1: đính kèm thông tin người đối diện (avatar/tên) để FE hiển thị đúng như Inbox thật.
+                if (c.getType() == ConversationType.SINGLE) {
+                    for (Participant pp : participantRepository.findByConversation_Id(c.getId())) {
+                        User u = pp.getUser();
+                        if (u != null && !u.getId().equals(userId)) {
+                            Map<String, Object> other = new HashMap<>();
+                            other.put("id", u.getId());
+                            other.put("username", u.getUsername());
+                            other.put("name", u.getName());
+                            other.put("photo", u.getPhoto());
+                            item.put("otherUser", other);
+                            break;
+                        }
+                    }
+                }
                 results.add(item);
             }
 

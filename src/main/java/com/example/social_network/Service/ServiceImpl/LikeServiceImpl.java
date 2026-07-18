@@ -7,7 +7,10 @@ import com.example.social_network.Repository.PostRepository;
 import com.example.social_network.Repository.UserRepository;
 import com.example.social_network.ResHelper.ResponseHelper;
 import com.example.social_network.Service.LikeService;
+import com.example.social_network.Service.NotificationService;
+import com.example.social_network.models.Dto.NotificationEvent;
 import com.example.social_network.models.Dto.ResponseMess;
+import com.example.social_network.models.Enum.NotificationType;
 import com.example.social_network.models.Entity.Comment;
 import com.example.social_network.models.Entity.Like;
 import com.example.social_network.models.Entity.Post;
@@ -46,6 +49,9 @@ public class LikeServiceImpl implements LikeService {
 
     @Autowired
     private CommentRepository commentRepository;
+
+    @Autowired
+    private NotificationService notificationService;
 
     // ================= API 1: REACT (tạo mới hoặc đổi loại cảm xúc) =================
     // @Transactional: có 2 thao tác ghi (likes + reaction_count) -> catch phải throw
@@ -101,6 +107,18 @@ public class LikeServiceImpl implements LikeService {
                 likeRepository.save(like);
                 adjustReactionCount(targetType, targetId, +1);
                 logger.info("User {} reacted {} on {} {}. IP: {}", userId, reactionType, targetType, targetId, ip);
+
+                // Thông báo cho chủ đối tượng (bài viết/bình luận) — chỉ khi react LẦN ĐẦU, bỏ qua nếu tự react.
+                // Bọc try/catch riêng: lỗi noti KHÔNG được làm rollback lượt react.
+                try {
+                    String ownerId = resolveOwnerId(targetType, targetId);
+                    if (ownerId != null && !ownerId.equals(userId)) {
+                        notificationService.publish(new NotificationEvent(
+                                ownerId, userId, NotificationType.LIKE.name(), targetId, null));
+                    }
+                } catch (Exception ex) {
+                    logger.error("Lỗi tạo notification LIKE cho {} {}: {}", targetType, targetId, ex.getMessage());
+                }
             } else {
                 Like existing = existingOpt.get();
                 if (existing.getReactionType() != reactionType) {
@@ -239,6 +257,16 @@ public class LikeServiceImpl implements LikeService {
             return postRepository.existsById(targetId);
         }
         return commentRepository.existsById(targetId);
+    }
+
+    /** Lấy id chủ sở hữu của đối tượng (tác giả bài viết hoặc người viết bình luận) để gửi thông báo. */
+    private String resolveOwnerId(LikeTargetType targetType, String targetId) {
+        if (targetType == LikeTargetType.POST) {
+            Post p = postRepository.findById(targetId).orElse(null);
+            return (p != null && p.getUser() != null) ? p.getUser().getId() : null;
+        }
+        Comment c = commentRepository.findById(targetId).orElse(null);
+        return (c != null && c.getUser() != null) ? c.getUser().getId() : null;
     }
 
     /**

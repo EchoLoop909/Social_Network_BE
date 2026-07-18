@@ -145,7 +145,9 @@ public class StoryServiceImpl implements StoryService {
             }
 
             Pageable paging = PageRequest.of(pageIdx, pageSize);
-            Page<Story> storyPage = storyRepository.findVisibleByUser(ownerId.trim(), LocalDateTime.now(), paging);
+            // Trang chủ: chỉ story CÒN HẠN (Highlight đã hết hạn sẽ không hiện ở đây).
+            Page<Story> storyPage = storyRepository.findByUser_IdAndExpiresAtAfterOrderByCreatedAtDesc(
+                    ownerId.trim(), LocalDateTime.now(), paging);
             List<Story> results = storyPage.getContent();
 
             logger.info("Get stories of {} success. Page: {}, Size: {}", ownerId, pageIdx, pageSize);
@@ -154,6 +156,52 @@ public class StoryServiceImpl implements StoryService {
         } catch (Exception e) {
             logger.error("Error in getStories: {}", e.getMessage());
             return ResponseHelper.getResponseSearchMess(HttpStatus.INTERNAL_SERVER_ERROR, new ResponseMess(1, "SYSTEM ERROR: " + e.getMessage()));
+        }
+    }
+
+    @Override
+    public Object getHighlights(String ownerId, int pageIdx, int pageSize) {
+        try {
+            if (ownerId == null || ownerId.trim().isEmpty()) {
+                return ResponseHelper.getResponseSearchMess(HttpStatus.BAD_REQUEST, new ResponseMess(1, "ownerId is required"));
+            }
+            Pageable paging = PageRequest.of(pageIdx, pageSize);
+            // Trang cá nhân: chỉ Highlight (is_archived = true), giữ mãi bất kể hết hạn.
+            Page<Story> storyPage = storyRepository.findByUser_IdAndIsArchivedTrueOrderByCreatedAtDesc(ownerId.trim(), paging);
+            List<Story> results = storyPage.getContent();
+
+            logger.info("Get highlights of {} success. Page: {}, Size: {}", ownerId, pageIdx, pageSize);
+            return ResponseHelper.getResponses(results, storyPage.getTotalElements(), storyPage.getTotalPages(), HttpStatus.OK);
+        } catch (Exception e) {
+            logger.error("Error in getHighlights: {}", e.getMessage());
+            return ResponseHelper.getResponseSearchMess(HttpStatus.INTERNAL_SERVER_ERROR, new ResponseMess(1, "SYSTEM ERROR: " + e.getMessage()));
+        }
+    }
+
+    @Override
+    public ResponseEntity<?> setHighlight(String storyId, Boolean archived, String userId, String ip) {
+        try {
+            if (storyId == null || storyId.trim().isEmpty()) {
+                return ResponseHelper.getResponseSearchMess(HttpStatus.BAD_REQUEST, new ResponseMess(1, "storyId is required"));
+            }
+            Story story = storyRepository.findById(storyId.trim()).orElse(null);
+            if (story == null) {
+                return ResponseHelper.getResponseSearchMess(HttpStatus.NOT_FOUND, new ResponseMess(1, "Story not found"));
+            }
+            if (userId == null || story.getUser() == null || !story.getUser().getId().equals(userId)) {
+                return ResponseHelper.getResponseSearchMess(HttpStatus.FORBIDDEN, new ResponseMess(1, "Bạn không có quyền với story này"));
+            }
+
+            // archived null -> đảo trạng thái hiện tại (toggle)
+            boolean next = (archived != null) ? archived : !Boolean.TRUE.equals(story.getIsArchived());
+            story.setIsArchived(next);
+            storyRepository.save(story);
+
+            logger.info("User {} set story {} isArchived={}. IP: {}", userId, story.getId(), next, ip);
+            return ResponseHelper.getResponseSearchMess(HttpStatus.OK, new ResponseMess(0, "UPDATE HIGHLIGHT SUCCESS"));
+        } catch (Exception e) {
+            logger.error("Error in setHighlight: {}", e.getMessage());
+            return ResponseHelper.getResponseSearchMess(HttpStatus.INTERNAL_SERVER_ERROR, new ResponseMess(1, "UPDATE FAILED: " + e.getMessage()));
         }
     }
 
