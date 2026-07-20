@@ -59,6 +59,7 @@ public class PathResources {
     public static final String POST_USER_TAG ="/post-user-tag";
     public static final String TAGGED ="/tagged";
     public static final String SHARERS ="/sharers";
+    public static final String RECOMMEND ="/recommend";
     public static final String Auth ="/auth";
     public static final String REGISTER ="/register";
     public static final String LOGIN ="/login";

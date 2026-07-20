@@ -53,6 +53,8 @@ public class SecurityConfig {
                                 "/swagger-resources/**", "/webjars/**").permitAll()
                         // WebSocket handshake (SockJS) — cho phép để client kết nối nhận tin real-time
                         .antMatchers("/ws/**").permitAll()
+                        // TẠM THỜI (Chặng 1) — test Gemini embedding không cần token; gỡ sau khi verify
+                        .antMatchers("/ai/**").permitAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()));
         return http.build();

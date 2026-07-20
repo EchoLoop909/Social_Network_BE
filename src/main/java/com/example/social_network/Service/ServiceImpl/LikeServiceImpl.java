@@ -278,6 +278,7 @@ public class LikeServiceImpl implements LikeService {
             Post post = postRepository.findById(targetId).orElse(null);
             if (post != null) {
                 int cur = post.getReactionCount() == null ? 0 : post.getReactionCount();
+                //chặn không cho âm
                 post.setReactionCount(Math.max(0, cur + delta));
                 postRepository.save(post);
             }

@@ -21,6 +21,10 @@ public interface LikeRepository extends JpaRepository<Like, String> {
     // API 3: danh sách người đã react cho 1 đối tượng, mới nhất trước
     Page<Like> findByTargetTypeAndTargetIdOrderByCreateTimeDesc(LikeTargetType targetType, String targetId, Pageable pageable);
 
+    // Gợi ý feed: danh sách id đối tượng (bài viết) mà 1 user đã react — để dựng "vector sở thích".
+    @Query("SELECT l.targetId FROM Like l WHERE l.user.id = :userId AND l.targetType = :type")
+    List<String> findTargetIdsByUserAndType(@Param("userId") String userId, @Param("type") LikeTargetType type);
+
     // API 3: thống kê số lượng theo từng loại cảm xúc (GROUP BY) — trả [reaction_type, count]
     @Query(value =
             "SELECT reaction_type, COUNT(*) " +

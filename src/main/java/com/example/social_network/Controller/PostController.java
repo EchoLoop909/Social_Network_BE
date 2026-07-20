@@ -4,6 +4,7 @@ import com.example.social_network.Config.Cloudinary.CloudinaryService;
 import com.example.social_network.Payload.Util.PathResources;
 import com.example.social_network.Payload.Util.SecurityUtils;
 import com.example.social_network.Service.PostService;
+import com.example.social_network.Service.RecommendationService;
 import com.example.social_network.models.Dto.DeleteDto;
 import com.example.social_network.models.Dto.Posts.PostInsertDto;
 import com.example.social_network.models.Dto.Posts.PostShareDto;
@@ -26,6 +27,9 @@ public class PostController {
 
     @Autowired
     private PostService postService;
+
+    @Autowired
+    private RecommendationService recommendationService;
 
     @PostMapping(value = PathResources.UPLOAD, consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<String> uploadImage(@RequestParam("file") MultipartFile file) {
@@ -51,6 +55,13 @@ public class PostController {
     @GetMapping(PathResources.SHARERS)
     public Object getSharers(@RequestParam String postId) {
         return postService.getSharers(postId);
+    }
+
+    // Feed GỢI Ý bằng AI (embedding + độ mới + độ hot). Trả cùng định dạng feed thường.
+    @GetMapping(PathResources.RECOMMEND)
+    public Object recommend(@RequestParam(defaultValue = "30") int limit) {
+        String viewerId = SecurityUtils.getCurrentUserId();
+        return recommendationService.recommend(viewerId, limit);
     }
 
     // API 2: tạo bài viết kèm media. id_user lấy từ token (KHÔNG nhận từ request).

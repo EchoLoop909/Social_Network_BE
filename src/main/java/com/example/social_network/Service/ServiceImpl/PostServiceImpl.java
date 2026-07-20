@@ -65,6 +65,9 @@ public class PostServiceImpl implements PostService {
     @Autowired
     private NotificationService notificationService;
 
+    @Autowired
+    private com.example.social_network.Service.PostEmbeddingService postEmbeddingService;
+
     // Bắt @username trong nội dung bài (chữ, số, dấu chấm, gạch dưới)
     private static final Pattern MENTION = Pattern.compile("@([A-Za-z0-9._]+)");
 
@@ -222,6 +225,14 @@ public class PostServiceImpl implements PostService {
 
             // Tự gắn thẻ những @username được nhắc trong nội dung + gửi thông báo cho họ
             tagMentionedUsers(post, userId);
+
+            // Đẩy yêu cầu embedding bài mới lên Kafka (chạy nền cho gợi ý feed).
+            // Bọc try/catch riêng: lỗi embedding KHÔNG được làm hỏng việc đăng bài.
+            try {
+                postEmbeddingService.publishEmbedRequest(post.getId());
+            } catch (Exception ex) {
+                logger.error("Lỗi publish embedding cho post {}: {}", post.getId(), ex.getMessage());
+            }
 
             logger.info("User {} created Post {} (type {}) with {} media. IP: {}",
                     userId, post.getId(), postType, mediaEmpty ? 0 : media.size(), ip);
