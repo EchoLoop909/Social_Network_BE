@@ -15,6 +15,7 @@ public class PathResources {
     public static final String CONVERSATIONS ="/conversations";  // danh sách hội thoại (Inbox)
     public static final String SEND ="/send";                    // gửi tin nhắn
     public static final String HISTORY ="/history";              // lịch sử tin nhắn
+    public static final String READ_STATE ="/read-state";        // trạng thái đã đọc của thành viên khác
     public static final String DELETE ="/delete";
     public static final String LIKE ="/like";
     public static final String LIKEPOST ="/likepost";
@@ -60,6 +61,8 @@ public class PathResources {
     public static final String TAGGED ="/tagged";
     public static final String SHARERS ="/sharers";
     public static final String RECOMMEND ="/recommend";
+    public static final String VIDEO_VIEW ="/video-view";
+    public static final String REELS ="/reels";
     public static final String Auth ="/auth";
     public static final String REGISTER ="/register";
     public static final String LOGIN ="/login";

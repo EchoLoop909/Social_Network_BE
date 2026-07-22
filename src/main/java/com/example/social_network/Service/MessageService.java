@@ -24,4 +24,10 @@ public interface MessageService {
 
     // Danh sách hội thoại của người đang đăng nhập (Inbox), sắp theo tin mới nhất.
     Object getConversations(String userId, int pageIdx, int pageSize);
+
+    // Đánh dấu ĐÃ ĐỌC tới tin mới nhất của hội thoại (cập nhật last_read_message_id của mình).
+    ResponseEntity<?> markRead(String conversationId, String userId, String ip);
+
+    // Trạng thái đã đọc của các thành viên KHÁC (để hiện "Đã xem" như FB).
+    Object getReadState(String conversationId, String userId);
 }

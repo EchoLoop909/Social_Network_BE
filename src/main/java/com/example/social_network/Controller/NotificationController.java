@@ -44,4 +44,11 @@ public class NotificationController {
         String userId = SecurityUtils.getCurrentUserId();
         return notificationService.markAllRead(userId, request.getRemoteAddr());
     }
+
+    // Xóa 1 thông báo (chỉ chính chủ).
+    @PostMapping(PathResources.DELETE)
+    public ResponseEntity<?> delete(@RequestParam String id, HttpServletRequest request) {
+        String userId = SecurityUtils.getCurrentUserId();
+        return notificationService.deleteNotification(id, userId, request.getRemoteAddr());
+    }
 }

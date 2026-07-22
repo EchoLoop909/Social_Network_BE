@@ -30,4 +30,7 @@ public interface PostService {
 
     /** Danh sách user đã chia sẻ (repost) 1 bài viết. */
     Object getSharers(String postId);
+
+    /** REELS: danh sách bài VIDEO người xem được phép thấy (phân trang, cùng format feed). */
+    Object getReels(String viewerId, int pageIdx, int pageSize);
 }

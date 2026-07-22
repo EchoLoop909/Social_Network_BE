@@ -5,6 +5,8 @@ import com.example.social_network.Payload.Util.PathResources;
 import com.example.social_network.Payload.Util.SecurityUtils;
 import com.example.social_network.Service.PostService;
 import com.example.social_network.Service.RecommendationService;
+import com.example.social_network.Service.VideoViewService;
+import com.example.social_network.models.Dto.VideoViewRequest;
 import com.example.social_network.models.Dto.DeleteDto;
 import com.example.social_network.models.Dto.Posts.PostInsertDto;
 import com.example.social_network.models.Dto.Posts.PostShareDto;
@@ -30,6 +32,9 @@ public class PostController {
 
     @Autowired
     private RecommendationService recommendationService;
+
+    @Autowired
+    private VideoViewService videoViewService;
 
     @PostMapping(value = PathResources.UPLOAD, consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<String> uploadImage(@RequestParam("file") MultipartFile file) {
@@ -64,6 +69,21 @@ public class PostController {
         return recommendationService.recommend(viewerId, limit);
     }
 
+    // REELS: danh sách bài VIDEO người xem được phép thấy (phân trang, cùng format feed).
+    @GetMapping(PathResources.REELS)
+    public Object getReels(@RequestParam(defaultValue = "1") int pageIdx,
+                           @RequestParam(defaultValue = "10") int pageSize) {
+        String viewerId = SecurityUtils.getCurrentUserId();
+        return postService.getReels(viewerId, pageIdx - 1, pageSize);
+    }
+
+    // FE gửi tiến độ xem video (giây đã xem + thời lượng) -> tín hiệu ngầm cho gợi ý.
+    @PostMapping(PathResources.VIDEO_VIEW)
+    public ResponseEntity<?> recordVideoView(@RequestBody VideoViewRequest req) {
+        String userId = SecurityUtils.getCurrentUserId();
+        return videoViewService.recordView(req, userId);
+    }
+
     // API 2: tạo bài viết kèm media. id_user lấy từ token (KHÔNG nhận từ request).
     @PostMapping(PathResources.INSERT)
     public ResponseEntity<?> insert(@RequestBody PostInsertDto dto,
@@ -87,7 +107,7 @@ public class PostController {
         return postService.update(dto, userId, request.getRemoteAddr());
     }
 
-    @PostMapping(PathResources.DELETE)
+    @DeleteMapping(PathResources.DELETE)
     public ResponseEntity<?> delete(@RequestBody DeleteDto dto,
                                     HttpServletRequest request) {
         String userId = SecurityUtils.getCurrentUserId();

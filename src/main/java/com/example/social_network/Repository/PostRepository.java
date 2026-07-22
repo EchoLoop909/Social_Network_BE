@@ -69,6 +69,38 @@ public interface PostRepository extends JpaRepository<Post,String> {
     )
     Page<Post> findFeed(@Param("viewerId") String viewerId, Pageable pageable);
 
+    /**
+     * REELS: giống findFeed nhưng CHỈ lấy bài dạng VIDEO (post_type = 'VIDEO').
+     * Vẫn lọc quyền xem (public / chính mình / bạn bè ACCEPTED) và loại BLOCKED.
+     */
+    @Query(
+            value =
+                    "SELECT p.* FROM posts p JOIN users u ON u.id_user = p.id_user " +
+                            "WHERE p.post_type = 'VIDEO' " +
+                            "  AND ( u.is_private = 0 " +
+                            "        OR p.id_user = :viewerId " +
+                            "        OR EXISTS (SELECT 1 FROM followerships f WHERE f.status = 'ACCEPTED' " +
+                            "             AND ((f.id_user_follower = :viewerId AND f.id_user_checked = p.id_user) " +
+                            "               OR (f.id_user_follower = p.id_user AND f.id_user_checked = :viewerId))) ) " +
+                            "  AND NOT EXISTS (SELECT 1 FROM followerships b WHERE b.status = 'BLOCKED' " +
+                            "        AND ((b.id_user_follower = :viewerId AND b.id_user_checked = p.id_user) " +
+                            "          OR (b.id_user_follower = p.id_user AND b.id_user_checked = :viewerId))) " +
+                            "ORDER BY p.create_time DESC",
+            countQuery =
+                    "SELECT COUNT(*) FROM posts p JOIN users u ON u.id_user = p.id_user " +
+                            "WHERE p.post_type = 'VIDEO' " +
+                            "  AND ( u.is_private = 0 " +
+                            "        OR p.id_user = :viewerId " +
+                            "        OR EXISTS (SELECT 1 FROM followerships f WHERE f.status = 'ACCEPTED' " +
+                            "             AND ((f.id_user_follower = :viewerId AND f.id_user_checked = p.id_user) " +
+                            "               OR (f.id_user_follower = p.id_user AND f.id_user_checked = :viewerId))) ) " +
+                            "  AND NOT EXISTS (SELECT 1 FROM followerships b WHERE b.status = 'BLOCKED' " +
+                            "        AND ((b.id_user_follower = :viewerId AND b.id_user_checked = p.id_user) " +
+                            "          OR (b.id_user_follower = p.id_user AND b.id_user_checked = :viewerId)))",
+            nativeQuery = true
+    )
+    Page<Post> findVideoFeed(@Param("viewerId") String viewerId, Pageable pageable);
+
     // Danh sách user đã CHIA SẺ (repost) 1 bài viết (mới nhất trước).
     @Query("SELECT p.user FROM Post p WHERE p.originalPost.id = :postId AND p.isShared = true ORDER BY p.createTime DESC")
     List<User> findSharers(@org.springframework.data.repository.query.Param("postId") String postId);

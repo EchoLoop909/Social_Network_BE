@@ -240,6 +240,32 @@ public class NotificationServiceImpl implements NotificationService {
         }
     }
 
+    // ====== Xóa 1 thông báo (chỉ chính chủ) ======
+    @Override
+    public ResponseEntity<?> deleteNotification(String id, String userId, String ip) {
+        try {
+            if (id == null || id.trim().isEmpty()) {
+                return ResponseHelper.getResponseSearchMess(HttpStatus.BAD_REQUEST, new ResponseMess(1, "id is required"));
+            }
+            if (userId == null || userId.trim().isEmpty()) {
+                return ResponseHelper.getResponseSearchMess(HttpStatus.UNAUTHORIZED, new ResponseMess(1, "Chưa xác thực người dùng"));
+            }
+            Notification noti = notificationRepository.findById(id.trim()).orElse(null);
+            if (noti == null) {
+                return ResponseHelper.getResponseSearchMess(HttpStatus.NOT_FOUND, new ResponseMess(1, "Notification not found"));
+            }
+            if (noti.getRecipient() == null || !noti.getRecipient().getId().equals(userId)) {
+                return ResponseHelper.getResponseSearchMess(HttpStatus.FORBIDDEN, new ResponseMess(1, "Bạn không có quyền với thông báo này"));
+            }
+            notificationRepository.delete(noti);
+            logger.info("Notification {} deleted by {}. IP: {}", id, userId, ip);
+            return ResponseHelper.getResponseSearchMess(HttpStatus.OK, new ResponseMess(0, "DELETE NOTIFICATION SUCCESS"));
+        } catch (Exception e) {
+            logger.error("Error in deleteNotification: {}", e.getMessage());
+            return ResponseHelper.getResponseSearchMess(HttpStatus.INTERNAL_SERVER_ERROR, new ResponseMess(1, "DELETE FAILED: " + e.getMessage()));
+        }
+    }
+
     // ====== Helper: Entity -> DTO ======
     private NotificationResponse toResponse(Notification n) {
         NotificationResponse r = new NotificationResponse();

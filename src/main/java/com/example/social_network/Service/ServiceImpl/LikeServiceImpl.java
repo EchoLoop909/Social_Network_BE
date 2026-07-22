@@ -126,6 +126,17 @@ public class LikeServiceImpl implements LikeService {
                     existing.setReactionType(reactionType);
                     likeRepository.save(existing);
                     logger.info("User {} changed reaction to {} on {} {}. IP: {}", userId, reactionType, targetType, targetId, ip);
+
+                    // Đổi loại cảm xúc cũng báo cho chủ đối tượng (bỏ qua nếu tự react). Bọc try/catch riêng.
+                    try {
+                        String ownerId = resolveOwnerId(targetType, targetId);
+                        if (ownerId != null && !ownerId.equals(userId)) {
+                            notificationService.publish(new NotificationEvent(
+                                    ownerId, userId, NotificationType.LIKE.name(), targetId, null));
+                        }
+                    } catch (Exception ex) {
+                        logger.error("Lỗi tạo notification đổi cảm xúc cho {} {}: {}", targetType, targetId, ex.getMessage());
+                    }
                 } else {
                     // Trùng loại cảm xúc cũ -> idempotent, không làm gì
                     logger.info("User {} already reacted {} on {} {} (idempotent). IP: {}", userId, reactionType, targetType, targetId, ip);

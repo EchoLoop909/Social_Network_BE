@@ -50,4 +50,18 @@ public class MessageController {
         String userId = SecurityUtils.getCurrentUserId();
         return messageService.getConversations(userId, pageIdx - 1, pageSize);
     }
+
+    // Đánh dấu đã đọc hội thoại (tới tin mới nhất).
+    @PostMapping(PathResources.READ)
+    public ResponseEntity<?> markRead(@RequestParam String conversationId, HttpServletRequest request) {
+        String userId = SecurityUtils.getCurrentUserId();
+        return messageService.markRead(conversationId, userId, request.getRemoteAddr());
+    }
+
+    // Trạng thái đã đọc của thành viên khác (cho dấu "Đã xem").
+    @GetMapping(PathResources.READ_STATE)
+    public Object getReadState(@RequestParam String conversationId) {
+        String userId = SecurityUtils.getCurrentUserId();
+        return messageService.getReadState(conversationId, userId);
+    }
 }

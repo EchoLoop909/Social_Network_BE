@@ -395,4 +395,22 @@ public class PostServiceImpl implements PostService {
             return ResponseHelper.getResponseSearchMess(HttpStatus.INTERNAL_SERVER_ERROR, new ResponseMess(1, "SYSTEM ERROR: " + e.getMessage()));
         }
     }
+
+    // REELS: chỉ lấy bài VIDEO người xem được phép thấy (đã lọc riêng tư + block trong SQL).
+    @Override
+    public Object getReels(String viewerId, int pageIdx, int pageSize) {
+        try {
+            if (viewerId == null || viewerId.trim().isEmpty()) {
+                return ResponseHelper.getResponseSearchMess(HttpStatus.UNAUTHORIZED, new ResponseMess(1, "Chưa xác thực người dùng"));
+            }
+            Pageable paging = PageRequest.of(pageIdx, pageSize);
+            Page<Post> page = postRepository.findVideoFeed(viewerId, paging);
+            List<Post> results = page.getContent();
+            logger.info("getReels for {} -> {} video (page {})", viewerId, results.size(), pageIdx);
+            return ResponseHelper.getResponses(results, page.getTotalElements(), page.getTotalPages(), HttpStatus.OK);
+        } catch (Exception e) {
+            logger.error("Error in getReels: {}", e.getMessage());
+            return ResponseHelper.getResponseSearchMess(HttpStatus.INTERNAL_SERVER_ERROR, new ResponseMess(1, "SYSTEM ERROR: " + e.getMessage()));
+        }
+    }
 }

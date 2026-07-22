@@ -32,4 +32,7 @@ public interface NotificationService {
     ResponseEntity<?> markRead(String id, String userId, String ip);
 
     ResponseEntity<?> markAllRead(String userId, String ip);
+
+    /** Xóa 1 thông báo của chính người dùng (kiểm tra quyền sở hữu). */
+    ResponseEntity<?> deleteNotification(String id, String userId, String ip);
 }

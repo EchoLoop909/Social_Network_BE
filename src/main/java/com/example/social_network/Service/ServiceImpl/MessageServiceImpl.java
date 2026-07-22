@@ -306,6 +306,21 @@ public class MessageServiceImpl implements MessageService {
                             break;
                         }
                     }
+                } else if (c.getType() == ConversationType.GROUP) {
+                    // Nhóm: gửi kèm tối đa 4 thành viên KHÁC mình để FE ghép ảnh đại diện nhóm.
+                    List<Map<String, Object>> members = new ArrayList<>();
+                    for (Participant pp : participantRepository.findByConversation_Id(c.getId())) {
+                        User u = pp.getUser();
+                        if (u == null || u.getId().equals(userId)) continue;
+                        Map<String, Object> m = new HashMap<>();
+                        m.put("id", u.getId());
+                        m.put("username", u.getUsername());
+                        m.put("name", u.getName());
+                        m.put("photo", u.getPhoto());
+                        members.add(m);
+                        if (members.size() >= 4) break;
+                    }
+                    item.put("members", members);
                 }
                 results.add(item);
             }
@@ -314,6 +329,57 @@ public class MessageServiceImpl implements MessageService {
             return ResponseHelper.getResponses(results, page.getTotalElements(), page.getTotalPages(), HttpStatus.OK);
         } catch (Exception e) {
             logger.error("Error in getConversations: {}", e.getMessage());
+            return ResponseHelper.getResponseSearchMess(HttpStatus.INTERNAL_SERVER_ERROR, new ResponseMess(1, "SYSTEM ERROR: " + e.getMessage()));
+        }
+    }
+
+    // ===== ĐÁNH DẤU ĐÃ ĐỌC (cập nhật last_read_message_id của mình = tin mới nhất) =====
+    @Override
+    public ResponseEntity<?> markRead(String conversationId, String userId, String ip) {
+        try {
+            if (conversationId == null || conversationId.trim().isEmpty()) {
+                return ResponseHelper.getResponseSearchMess(HttpStatus.BAD_REQUEST, new ResponseMess(1, "conversationId is required"));
+            }
+            Participant p = participantRepository.findByConversation_IdAndUser_Id(conversationId.trim(), userId).orElse(null);
+            if (p == null) {
+                return ResponseHelper.getResponseSearchMess(HttpStatus.FORBIDDEN, new ResponseMess(1, "Bạn không thuộc hội thoại này"));
+            }
+            Messages last = messageRepository.findTopByConversation_IdOrderByCreateTimeDesc(conversationId.trim());
+            if (last != null) {
+                p.setLastReadMessageId(last.getId());
+                participantRepository.save(p);
+            }
+            return ResponseHelper.getResponseSearchMess(HttpStatus.OK, new ResponseMess(0, "MARK READ SUCCESS"));
+        } catch (Exception e) {
+            logger.error("Error in markRead: {}", e.getMessage());
+            return ResponseHelper.getResponseSearchMess(HttpStatus.INTERNAL_SERVER_ERROR, new ResponseMess(1, "SYSTEM ERROR: " + e.getMessage()));
+        }
+    }
+
+    // ===== TRẠNG THÁI ĐÃ ĐỌC của thành viên KHÁC (cho dấu "Đã xem") =====
+    @Override
+    public Object getReadState(String conversationId, String userId) {
+        try {
+            if (conversationId == null || conversationId.trim().isEmpty()) {
+                return ResponseHelper.getResponseSearchMess(HttpStatus.BAD_REQUEST, new ResponseMess(1, "conversationId is required"));
+            }
+            if (participantRepository.findByConversation_IdAndUser_Id(conversationId.trim(), userId).isEmpty()) {
+                return ResponseHelper.getResponseSearchMess(HttpStatus.FORBIDDEN, new ResponseMess(1, "Bạn không thuộc hội thoại này"));
+            }
+            List<Map<String, Object>> others = new ArrayList<>();
+            for (Participant pp : participantRepository.findByConversation_Id(conversationId.trim())) {
+                User u = pp.getUser();
+                if (u == null || u.getId().equals(userId)) continue;
+                Map<String, Object> m = new HashMap<>();
+                m.put("userId", u.getId());
+                m.put("username", u.getUsername());
+                m.put("photo", u.getPhoto());
+                m.put("lastReadMessageId", pp.getLastReadMessageId());
+                others.add(m);
+            }
+            return ResponseHelper.getResponses(others, others.size(), 1, HttpStatus.OK);
+        } catch (Exception e) {
+            logger.error("Error in getReadState: {}", e.getMessage());
             return ResponseHelper.getResponseSearchMess(HttpStatus.INTERNAL_SERVER_ERROR, new ResponseMess(1, "SYSTEM ERROR: " + e.getMessage()));
         }
     }

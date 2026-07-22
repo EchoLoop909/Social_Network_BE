@@ -4,6 +4,7 @@ import com.example.social_network.Repository.BookmarkRepository;
 import com.example.social_network.Repository.LikeRepository;
 import com.example.social_network.Repository.PostEmbeddingRepository;
 import com.example.social_network.Repository.PostRepository;
+import com.example.social_network.Repository.VideoViewRepository;
 import com.example.social_network.ResHelper.ResponseHelper;
 import com.example.social_network.Service.RecommendationService;
 import com.example.social_network.models.Dto.ResponseMess;
@@ -46,6 +47,9 @@ public class RecommendationServiceImpl implements RecommendationService {
     @Autowired
     private BookmarkRepository bookmarkRepository;
 
+    @Autowired
+    private VideoViewRepository videoViewRepository;
+
     @Value("${recommend.candidate-limit:300}")
     private int candidateLimit;
 
@@ -74,16 +78,33 @@ public class RecommendationServiceImpl implements RecommendationService {
                 return ResponseHelper.getResponses(new ArrayList<Post>(), 0L, 0, HttpStatus.OK);
             }
 
-            // 2. Bài user đã tương tác (dùng để dựng sở thích + loại khỏi kết quả gợi ý)
+            // 2. Tương tác của user kèm TRỌNG SỐ: save=1.0, like=0.8, xem video=theo tỉ lệ xem.
             Set<String> likedIds = new HashSet<>(
                     likeRepository.findTargetIdsByUserAndType(viewerId, LikeTargetType.POST));
             Set<String> savedIds = new HashSet<>(bookmarkRepository.findPostIds(viewerId));
+            List<Object[]> views = videoViewRepository.findViewsByUser(viewerId); // [postId, watchedRatio]
+
+            Map<String, Double> weights = new HashMap<>();
+            for (String id : savedIds) weights.merge(id, 1.0, Math::max);
+            for (String id : likedIds) weights.merge(id, 0.8, Math::max);
+            for (Object[] row : views) {
+                String pid = (String) row[0];
+                double ratio = row[1] == null ? 0.0 : ((Number) row[1]).doubleValue();
+                double w = viewWeight(ratio);           // xem đủ lâu mới tính
+                if (w > 0) weights.merge(pid, w, Math::max);
+            }
+
+            // Loại khỏi kết quả: bài đã like/save + video đã xem gần hết (>=0.9) -> khỏi gợi ý lại.
             Set<String> interactedIds = new HashSet<>();
             interactedIds.addAll(likedIds);
             interactedIds.addAll(savedIds);
+            for (Object[] row : views) {
+                double ratio = row[1] == null ? 0.0 : ((Number) row[1]).doubleValue();
+                if (ratio >= 0.9) interactedIds.add((String) row[0]);
+            }
 
-            // 3. VECTOR SỞ THÍCH = trung bình vector các bài đã tương tác (null nếu chưa tương tác gì)
-            float[] interest = buildInterestVector(interactedIds);
+            // 3. VECTOR SỞ THÍCH = trung bình CÓ TRỌNG SỐ (null nếu chưa có tín hiệu nào)
+            float[] interest = buildInterestVector(weights);
 
             // 4. Chuẩn bị chuẩn hóa recency & popularity trên tập ứng viên
             long minTime = Long.MAX_VALUE, maxTime = Long.MIN_VALUE;
@@ -158,28 +179,42 @@ public class RecommendationServiceImpl implements RecommendationService {
         }
     }
 
-    /** Trung bình các vector của bài đã tương tác -> "vector sở thích". null nếu không có. */
-    private float[] buildInterestVector(Set<String> ids) {
-        if (ids.isEmpty()) return null;
-        Map<String, float[]> vecs = loadVectors(new ArrayList<>(ids));
+    /**
+     * Trung bình CÓ TRỌNG SỐ các vector -> "vector sở thích".
+     * weights: postId -> trọng số (save=1.0, like=0.8, xem video theo tỉ lệ). null nếu không có tín hiệu.
+     */
+    private float[] buildInterestVector(Map<String, Double> weights) {
+        if (weights.isEmpty()) return null;
+        Map<String, float[]> vecs = loadVectors(new ArrayList<>(weights.keySet()));
         if (vecs.isEmpty()) return null;
 
         int dim = -1;
         float[] sum = null;
-        int count = 0;
-        for (float[] v : vecs.values()) {
-            if (v == null) continue;
+        double wsum = 0.0;
+        for (Map.Entry<String, Double> e : weights.entrySet()) {
+            float[] v = vecs.get(e.getKey());
+            double w = e.getValue() == null ? 0.0 : e.getValue();
+            if (v == null || w <= 0) continue;
             if (sum == null) {
                 dim = v.length;
                 sum = new float[dim];
             }
             if (v.length != dim) continue;
-            for (int i = 0; i < dim; i++) sum[i] += v[i];
-            count++;
+            for (int i = 0; i < dim; i++)
+                sum[i] += (float) (w * v[i]);   // cộng có trọng số
+            wsum += w;
         }
-        if (sum == null || count == 0) return null;
-        for (int i = 0; i < dim; i++) sum[i] /= count;
+        if (sum == null || wsum <= 0) return null;
+        for (int i = 0; i < dim; i++) sum[i] /= wsum;   // chia TỔNG trọng số
         return sum;
+    }
+
+    /** Đổi tỉ lệ xem video -> trọng số (xem càng nhiều càng nặng; lướt ngay <30% = bỏ qua). */
+    private static double viewWeight(double ratio) {
+        if (ratio >= 0.9) return 1.2;   // xem gần hết / xem lại -> mê
+        if (ratio >= 0.6) return 0.8;   // xem quá nửa -> thích
+        if (ratio >= 0.3) return 0.3;   // xem 1 phần -> hơi quan tâm
+        return 0.0;                     // lướt ngay -> bỏ qua
     }
 
     /** Nạp vector (parse JSON) cho danh sách id bài. */
