@@ -79,7 +79,7 @@ public class AuthController {
         if (bindingResult.hasErrors()) {
             return ResponseHelper.getErrorResponse(bindingResult, HttpStatus.BAD_REQUEST);
         }
-        return (ResponseEntity<?>) userService.register(request);
+        return userService.register(request);
     }
 
     /** Đăng nhập: FE gọi vào đây, backend proxy tới Keycloak. */

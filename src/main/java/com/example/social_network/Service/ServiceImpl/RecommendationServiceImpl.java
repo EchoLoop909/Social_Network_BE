@@ -1,6 +1,7 @@
 package com.example.social_network.Service.ServiceImpl;
 
 import com.example.social_network.Repository.BookmarkRepository;
+import com.example.social_network.Repository.FollowershipRepository;
 import com.example.social_network.Repository.LikeRepository;
 import com.example.social_network.Repository.PostEmbeddingRepository;
 import com.example.social_network.Repository.PostRepository;
@@ -10,6 +11,7 @@ import com.example.social_network.Service.RecommendationService;
 import com.example.social_network.models.Dto.ResponseMess;
 import com.example.social_network.models.Entity.Post;
 import com.example.social_network.models.Entity.PostEmbedding;
+import com.example.social_network.models.Enum.FollowStatus;
 import com.example.social_network.models.Enum.LikeTargetType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -22,6 +24,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -49,6 +52,9 @@ public class RecommendationServiceImpl implements RecommendationService {
 
     @Autowired
     private VideoViewRepository videoViewRepository;
+
+    @Autowired
+    private FollowershipRepository followershipRepository;
 
     @Value("${recommend.candidate-limit:300}")
     private int candidateLimit;
@@ -102,6 +108,12 @@ public class RecommendationServiceImpl implements RecommendationService {
                 double ratio = row[1] == null ? 0.0 : ((Number) row[1]).doubleValue();
                 if (ratio >= 0.9) interactedIds.add((String) row[0]);
             }
+
+            // 2b. Tác giả mà người xem đang THEO DÕI / là BẠN (FOLLOWING hoặc ACCEPTED, xét 2 chiều)
+            //     -> bài của họ sẽ được ưu tiên xếp LÊN ĐẦU (tầng 1 khi sort).
+            Set<String> followedAuthorIds = new HashSet<>(
+                    followershipRepository.findFollowedOrFriendIds(
+                            viewerId, Arrays.asList(FollowStatus.FOLLOWING, FollowStatus.ACCEPTED)));
 
             // 3. VECTOR SỞ THÍCH = trung bình CÓ TRỌNG SỐ (null nếu chưa có tín hiệu nào)
             float[] interest = buildInterestVector(weights);
@@ -160,11 +172,17 @@ public class RecommendationServiceImpl implements RecommendationService {
                     // TẦNG 3 (cold-start): chưa tương tác gì -> chỉ hot + mới.
                     score = 0.5 * c.recNorm + 0.5 * c.popNorm;
                 }
-                scored.add(new Scored(c.post, score));
+                boolean followed = c.post.getUser() != null
+                        && followedAuthorIds.contains(c.post.getUser().getId());
+                scored.add(new Scored(c.post, score, followed));
             }
 
-            // Xếp theo điểm giảm dần, lấy top-N
-            scored.sort((a, b) -> Double.compare(b.score, a.score));
+            // Xếp hạng 2 TẦNG: (1) ưu tiên bài của người mình theo dõi/bạn lên đầu,
+            //                   (2) trong cùng nhóm mới so điểm (similarity+recency+popularity) giảm dần.
+            scored.sort((a, b) -> {
+                if (a.followed != b.followed) return a.followed ? -1 : 1;
+                return Double.compare(b.score, a.score);
+            });
             int n = Math.max(1, limit);
             List<Post> result = scored.stream().limit(n).map(s -> s.post).collect(Collectors.toList());
 
@@ -252,9 +270,11 @@ public class RecommendationServiceImpl implements RecommendationService {
     private static class Scored {
         final Post post;
         final double score;
-        Scored(Post post, double score) {
+        final boolean followed;   // tác giả là người mình đang theo dõi / bạn -> ưu tiên lên đầu
+        Scored(Post post, double score, boolean followed) {
             this.post = post;
             this.score = score;
+            this.followed = followed;
         }
     }
 

@@ -18,15 +18,6 @@ public interface StoryRepository extends JpaRepository<Story, String> {
     // Dùng deleteAll(list) ở tầng service để cascade xóa story_views (bulk DELETE JPQL không cascade).
     List<Story> findByExpiresAtBeforeAndIsArchivedFalse(LocalDateTime now);
 
-    // Story còn "hiển thị" của 1 user: chưa hết hạn (expires_at > now) HOẶC là Highlight (is_archived = true).
-    // Dùng JPQL vì điều kiện OR trên 2 field khác nhau, derived method không biểu diễn gọn được.
-    @Query("SELECT s FROM Story s WHERE s.user.id = :userId " +
-            "AND (s.expiresAt > :now OR s.isArchived = true) " +
-            "ORDER BY s.createdAt DESC")
-    Page<Story> findVisibleByUser(@Param("userId") String userId,
-                                  @Param("now") LocalDateTime now,
-                                  Pageable pageable);
-
     // HOME: chỉ story CÒN HẠN (expires_at > now) — Highlight hết hạn sẽ KHÔNG hiện ở trang chủ.
     Page<Story> findByUser_IdAndExpiresAtAfterOrderByCreatedAtDesc(String userId, LocalDateTime now, Pageable pageable);
 

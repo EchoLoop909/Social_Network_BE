@@ -75,10 +75,12 @@ public class PostServiceImpl implements PostService {
     private void tagMentionedUsers(Post post, String authorId) {
         String text = post.getText();
         if (text == null || text.isEmpty()) return;
+        //Bộ dò tìm
         Matcher m = MENTION.matcher(text);
         Set<String> done = new HashSet<>();
         while (m.find()) {
             String uname = m.group(1);
+            //tránh trùng lặp tag user 2 lần
             if (!done.add(uname.toLowerCase())) continue;
             User tagged = userRepository.findByUsername(uname).orElse(null);
             if (tagged == null || tagged.getId().equals(authorId)) continue;

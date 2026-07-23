@@ -58,6 +58,14 @@ public interface FollowershipRepository extends JpaRepository<Followership, Stri
             "FROM Followership f WHERE f.userFollower.id = :me OR f.userChecked.id = :me")
     List<String> findRelatedUserIds(@Param("me") String me);
 
+    // Id các tác giả mà mình đang theo dõi / là bạn (status thuộc danh sách, xét CẢ 2 CHIỀU) —
+    // dùng để ƯU TIÊN bài của họ lên đầu trong gợi ý (recommend).
+    @Query("SELECT CASE WHEN f.userFollower.id = :me THEN f.userChecked.id ELSE f.userFollower.id END " +
+            "FROM Followership f WHERE (f.userFollower.id = :me OR f.userChecked.id = :me) " +
+            "AND f.status IN :statuses")
+    List<String> findFollowedOrFriendIds(@Param("me") String me,
+                                         @Param("statuses") Collection<FollowStatus> statuses);
+
     // Giữa 2 user CÓ đang bị chặn không (xét CẢ 2 CHIỀU) — dùng để ẩn nhau.
     @Query("SELECT COUNT(f) > 0 FROM Followership f WHERE f.status = :blocked " +
             "AND ((f.userFollower.id = :a AND f.userChecked.id = :b) " +
